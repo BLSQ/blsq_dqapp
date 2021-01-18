@@ -5,10 +5,10 @@ Created on Thu Jan 14 15:16:53 2021
 @author: Fernando-Bluesquare
 """
 
-from outlier_detection import outlier_detection_handler
-from availability import availability_condition_generator_handler
-from reporting_style_tools import reporting_style_classifier
-from formatting_tools import fosa_level_df_generation,lvl3_transformation_from_fosa,tableau_format_generator
+from .outlier_detection import outlier_detection_handler
+from .availability import availability_condition_generator_handler
+from .reporting_style_tools import reporting_style_classifier
+from .formatting_tools import fosa_level_df_generation,lvl3_transformation_from_fosa,tableau_format_generator
 
 class quality_auction_container(object):
     """Information and metadata about a given DHIS instance.
@@ -65,6 +65,3 @@ class quality_auction_container(object):
         self.fosa_df_generation()
         self.lvl_3_generation()
         self.tabeau_format_table_generation()
-        
-        
-        
