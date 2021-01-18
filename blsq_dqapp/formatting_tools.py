@@ -94,12 +94,9 @@ def metadata_dict_generator(de_df,ds_df,ou_df):
 
 
 def metadata_labeling(df,metadata_dict):
-    main_lab_cols=[col for col in df.columns if col in  ['DE_UID','COC_UID','OU_UID','DS_UID']]
-    ou_tree_cols=
-    full_cols=[main_lab_cols].extend(ou_tree_cols)
-    
     for key in [DE,COC,DS,OU]:
         if key+'_UID' in df.columns:
             df[key+'_NAME']=df[key+'_UID'].map(metadata_dict[key])
     for key in [col for col in df.columns if col.startswith('LEVEL_')]:
         df[key+'_NAME']=df[key+'_UID'].map(metadata_dict['OU'])
+    return df
