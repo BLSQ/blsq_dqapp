@@ -8,6 +8,10 @@ Created on Tue Jan 12 21:22:17 2021
 import numpy as np
 import pandas as pd
 #Reviewed for DE
+
+def data_values_trimmering(df):
+    return df[[col for col in df.columns if col in ['OU_UID','DE_UID','COC_UID','PERIOD','VALUE']]]
+
 def fosa_stats_generator(df,grouping_cols):
     values_cols=['VALUE', 'DE_AVAILABILITY_BOOL','OUTLIER_RS', 'ZERO']
     grouped=df[values_cols+grouping_cols].groupby(grouping_cols)
@@ -77,38 +81,25 @@ def tableau_format_generator(info_lvl_3_df,de_uid_vars):
     return de_full_table_tableau_format
 
 
-fosa_df=fosa_level_df_generation(data_tree_extended,reporting_style_df,de_uid_vars)
+#Metadata Labeling
 
 
+def metadata_dict_generator(de_df,ds_df,ou_df):
+    
+    de_dict=de_df[['DE_UID','DE_NAME']].drop_duplicates().set_index('DE_UID').to_dict()['DE_NAME']
+    coc_dict=de_df[['COC_UID','COC_NAME']].drop_duplicates().set_index('COC_UID').to_dict()['COC_NAME']
+    ds_dict=ds_df[['DS_UID','DS_NAME']].drop_duplicates().set_index('DS_UID').to_dict()['DS_NAME']
+    ou_dict=ou_df[['OU_UID','OU_NAME']].drop_duplicates().set_index('OU_UID').to_dict()['OU_NAME']
+    return metadata_dict={'DE':de_dict,'COC':coc_dict,'DS':ds_dict,'OU':ou_dict}
 
 
-lvl2_uid_dict=org_unit_tree[['LEVEL_2_NAME','LEVEL_2_UID']].drop_duplicates().set_index('LEVEL_2_NAME').to_dict()['LEVEL_2_UID']
-lvl3_uid_dict=org_unit_tree[['LEVEL_3_NAME','LEVEL_3_UID']].drop_duplicates().set_index('LEVEL_3_NAME').to_dict()['LEVEL_3_UID']
-
-info_lvl_3_df['LEVEL_3_UID']=info_lvl_3_df.LEVEL_3_NAME.map(lvl3_uid_dict)
-info_lvl_3_df['LEVEL_2_UID']=info_lvl_3_df.LEVEL_2_NAME.map(lvl2_uid_dict)
-
-
-
-
-
-
-#DE uids/name/ds dict
-de_uid_dict=pd.read_csv('s3://habari-public/Metadata/Cameroon/de_ids_Cameroon-23-09-2020.csv').set_index('DE_UID').to_dict()['DE_NAME']
-de_uid_ds_dict=RMA_datasets_datelements_metadata.set_index('DE_UID').to_dict()['DS_NAME']
-
-
-
-#Using the late table we obtain a table that determines the belongign of an DE for a OU
-ou_de_full_table=cross_join(org_unit_tree[['OU_UID']],de_table)
-ou_de_full_table=ou_de_full_table.merge(de_coc_ou_uids.assign(DE_BELONG=1),how='left',on=['OU_UID', 'DE_UID', 'COC_UID']).fillna(0)
-de_ou_coverage=ou_de_full_table.groupby('DE_UID').mean().to_dict()['DE_BELONG']
-
-
-de_full_table_tableau_format['DE_NAME']=de_full_table_tableau_format.DE_UID.map(de_uid_dict)
-de_full_table_tableau_format['COC_NAME']=de_full_table_tableau_format.COC_UID.map(coc_uid_dict)
-de_full_table_tableau_format['DS_NAME']=de_full_table_tableau_format.DE_UID.map(de_uid_ds_dict)
-de_full_table_tableau_format['DE_COVERAGE']=de_full_table_tableau_format.DE_UID.map(de_ou_coverage)
-
-
-de_full_table_tableau_format=de_full_table_tableau_format[['DS_NAME','DE_NAME','DE_UID','DE_COVERAGE','AGG','ALWAYS','INCONSISTENT','NEVER','STOPPED','DE_AVAILABILITY_BOOL','REPORTING_MONTHS_COUNT','OUTLIER_FOSA', 'OUTLIER_VALUES', 'VALUE','ZERO']]
+def metadata_labeling(df,metadata_dict):
+    main_lab_cols=[col for col in df.columns if col in  ['DE_UID','COC_UID','OU_UID','DS_UID']]
+    ou_tree_cols=
+    full_cols=[main_lab_cols].extend(ou_tree_cols)
+    
+    for key in [DE,COC,DS,OU]:
+        if key+'_UID' in df.columns:
+            df[key+'_NAME']=df[key+'_UID'].map(metadata_dict[key])
+    for key in [col for col in df.columns if col.startswith('LEVEL_')]:
+        df[key+'_NAME']=df[key+'_UID'].map(metadata_dict['OU'])
