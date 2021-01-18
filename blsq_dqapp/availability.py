@@ -10,17 +10,21 @@ def cross_join(df_left,df_right):
     return df_crossed
 
 
-def de_coc_ou_uids_table_generator(dataset_de,dataset_ou):
-    #By DE
-    return dataset_de.merge(dataset_ou,on=['DS_UID','DS_NAME'])[['DE_UID','COC_UID','OU_UID']].drop_duplicates()
+def de_coc_ou_uids_table_generator(dataset_ou,de_df):
+    return dataset_ou.merge(de_df,on=['DS_UID'])[['DE_UID','COC_UID','OU_UID']].drop_duplicates()
 
-#Notice we're filtering by de present,assuming that the DE is somehwere, this should be erase if we're sure we're taking all DE information
+#Notice we're filtering by de present,assuming that the DE is somewhere, this should be erase if we're sure we're taking all DE information
 # and not partial extracts
 
-def availability_tree_table_maker(de_coc_ou_uids,period_table):
-    return cross_join(de_coc_ou_uids,period_table)
+def availability_tree_table_maker(dataset_ou,de_df,period_table):
+    return cross_join(de_coc_ou_uids_table_generator(dataset_ou,de_df),period_table)
 
-
+def de_ou_coverage_dict(dataset_ou,de_df,ou_tree_df)
+    #Using the late table we obtain a table that determines the belonging of an DE for a OU
+    ou_de_full_table=cross_join(org_unit_tree[['OU_UID']],de_coc_ou_uids[['DE_UID','COC_UID']].drop_duplicates())
+    ou_de_full_table=ou_de_full_table.merge(de_coc_ou_uids.assign(DE_BELONG=1),how='left',on=['OU_UID', 'DE_UID', 'COC_UID']).fillna(0)
+    de_ou_coverage=ou_de_full_table.groupby('DE_UID').mean().to_dict()['DE_BELONG']
+    return de_ou_coverage
 
     
 def availability_condition_generator(df):
