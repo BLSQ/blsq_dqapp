@@ -22,7 +22,6 @@ setup(
        "pandas",
        "requests",
        "datetime",
-       "getpass",
        "urllib",
     ],
     classifiers=[
