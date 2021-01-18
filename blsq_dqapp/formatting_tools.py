@@ -90,7 +90,7 @@ def metadata_dict_generator(de_df,ds_df,ou_df):
     coc_dict=de_df[['COC_UID','COC_NAME']].drop_duplicates().set_index('COC_UID').to_dict()['COC_NAME']
     ds_dict=ds_df[['DS_UID','DS_NAME']].drop_duplicates().set_index('DS_UID').to_dict()['DS_NAME']
     ou_dict=ou_df[['OU_UID','OU_NAME']].drop_duplicates().set_index('OU_UID').to_dict()['OU_NAME']
-    return metadata_dict={'DE':de_dict,'COC':coc_dict,'DS':ds_dict,'OU':ou_dict}
+    return {'DE':de_dict,'COC':coc_dict,'DS':ds_dict,'OU':ou_dict}
 
 
 def metadata_labeling(df,metadata_dict):
