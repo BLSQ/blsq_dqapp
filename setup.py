@@ -21,8 +21,7 @@ setup(
        "numpy", 
        "pandas",
        "requests",
-       "datetime",
-       "urllib",
+       "datetime"
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
