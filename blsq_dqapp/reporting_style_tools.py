@@ -31,4 +31,6 @@ def reporting_style_classifier_function(df,added_de_uid_vars):
 
 def reporting_style_classifier(df,de_uid_vars):
     #de_uid_vars=[col for col in df.columns if col in ['DE_UID','COC_UID'] ]
+    ##Sorting of periods on the df
+    df=df.sort_values('PERIOD')    
     return reporting_style_classifier_function(df[['OU_UID','DE_AVAILABILITY_BOOL']+de_uid_vars],de_uid_vars)
