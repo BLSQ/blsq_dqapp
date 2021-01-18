@@ -1,11 +1,9 @@
 #Author:Fernando
 #Modified of Stéphan original code
-import numpy as np
+
 import requests
 import urllib.parse
 import pandas as pd
-import s3fs
-import json
 import getpass
 import urllib
 from datetime import datetime
@@ -138,7 +136,7 @@ class Dhis2Client(object):
             ds_name=[None]
             ds_uid=[ds['id']]
             if 'name' in ds.keys():
-                de_name=[ds['name']]
+                ds_name=[ds['name']]
             if 'organisationUnits' in ds.keys():
                 if ds['organisationUnits']:
                     for ou in ds['organisationUnits']:
