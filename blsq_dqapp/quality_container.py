@@ -33,9 +33,11 @@ class quality_auction_container(object):
                                                     self.project_path_processed,
                                                     self.files_main_name)
             
-    def availability_generation(self):
+    def availability_generation(self,custom_tree_input=None):
+        if not custom_tree_input:
+            custom_tree_input=self.input_metadata_tree
         self.processed_df=availability_condition_generator_handler(self.processed_df,
-                                                                   self.input_metadata_tree,
+                                                                   custom_tree_input,
                                                                    self.de_uid_vars)
         
     def reporting_style_generation(self):
