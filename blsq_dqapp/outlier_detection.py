@@ -54,7 +54,7 @@ def df_median_batching_assignment(df,re=None):
     """""
     
     #To reduce computations we only proceed to calculate if any data is present.
-    if not np.isnan(df.VALUE.max()):
+    if not np.isnan(df['VALUE'].max()):
         
         median_units_values=median_unit_values_reviewed_generation(df,re)
         
