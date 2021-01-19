@@ -19,7 +19,7 @@ def de_coc_ou_uids_table_generator(dataset_ou,de_df):
 def availability_tree_table_maker(dataset_ou,de_df,period_table):
     return cross_join(de_coc_ou_uids_table_generator(dataset_ou,de_df),period_table)
 
-def de_ou_coverage_dict(dataset_ou,de_df,ou_tree_df):
+def de_ou_coverage_dict(dataset_ou,de_coc_ou_uids,ou_tree_df):
     #Using the late table we obtain a table that determines the belonging of an DE for a OU
     ou_de_full_table=cross_join(ou_tree_df[['OU_UID']],de_coc_ou_uids[['DE_UID','COC_UID']].drop_duplicates())
     ou_de_full_table=ou_de_full_table.merge(de_coc_ou_uids.assign(DE_BELONG=1),how='left',on=['OU_UID', 'DE_UID', 'COC_UID']).fillna(0)
