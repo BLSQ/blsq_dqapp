@@ -65,9 +65,9 @@ class quality_auction_container(object):
         self.tableau_format_table=tableau_format_generator(self.lvl_df,
                                                            self.de_uid_vars)
         
-    def full_process_run(self):
+    def full_process_run(self,custom_tree_input=None,level_to_filter=5):
         self.outliers_generation()
-        self.availability_generation()
+        self.availability_generation(custom_tree_input=custom_tree_input,level_to_filter=level_to_filter)
         self.reporting_style_generation()
         self.fosa_df_generation()
         self.lvl_3_generation()
