@@ -36,7 +36,7 @@ class quality_auction_container(object):
                                                     self.files_main_name)
             
     def availability_generation(self,custom_tree_input=None,level_to_filter=5):
-        if custom_tree_input==None:
+        if custom_tree_input is None:
             fosa_tree_expected=self.input_metadata_tree.query('LEVEL=='+str(level_to_filter))
             fosa_tree_expected=fosa_tree_expected[['OU_UID']]
             custom_tree_input=cross_join(fosa_tree_expected,self.period_table)
