@@ -6,7 +6,7 @@ Created on Thu Jan 14 15:16:53 2021
 """
 
 from .outlier_detection import outlier_detection_handler
-from .availability import availability_condition_generator_handler
+from .availability import availability_condition_generator_handler,cross_join
 from .reporting_style_tools import reporting_style_classifier
 from .formatting_tools import fosa_level_df_generation,lvl3_transformation_from_fosa,tableau_format_generator
 
@@ -26,6 +26,7 @@ class quality_auction_container(object):
         self.project_path_processed = project_path_processed
         self.files_main_name = files_main_name
         self.de_uid_vars=de_uid_vars
+        self.period_table=self.processed_df[['PERIOD']].drop_duplicates()
         
     def outliers_generation(self):
         self.processed_df=outlier_detection_handler(self.processed_df,
@@ -33,9 +34,12 @@ class quality_auction_container(object):
                                                     self.project_path_processed,
                                                     self.files_main_name)
             
-    def availability_generation(self,custom_tree_input=None):
+    def availability_generation(self,custom_tree_input=None,level_to_filter=5):
         if not custom_tree_input:
-            custom_tree_input=self.input_metadata_tree
+            fosa_tree_expected=self.input_metadata_tree.query('LEVEL=='+str(level_to_filter))
+            fosa_tree_expected=fosa_tree_expected[['OU_UID']]
+            custom_tree_input=cross_join(fosa_tree_expected,self.period_table)
+            
         self.processed_df=availability_condition_generator_handler(self.processed_df,
                                                                    custom_tree_input,
                                                                    self.de_uid_vars)
