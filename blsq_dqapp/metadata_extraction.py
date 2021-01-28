@@ -1,9 +1,11 @@
 #Author:Fernando
 #Modified of Stéphan original code
-
+import numpy as np
 import requests
 import urllib.parse
 import pandas as pd
+import s3fs
+import json
 import getpass
 import urllib
 from datetime import datetime
@@ -67,6 +69,20 @@ class Dhis2Client(object):
         
         return dataElementsStructure
     
+    def fetch_indicators_structure(self,coc_default_name="default"):
+        indicatorsStructure = self.get("indicators.json", 
+                                         params={
+                                                "paging":False,                                                          
+                                                "fields":
+                                                         "id,name"+
+                                                         ",numerator,denominator"
+                                                })['indicators']
+        
+        coc_default_uid=self.fetch_coc_structure().query('COC_NAME=="'+coc_default_name+'"').COC_UID.values[0]
+        indicatorsStructure=self._indicators_json_to_df(indicatorsStructure,coc_default_uid=coc_default_uid)
+        
+        return indicatorsStructure
+    
     def fetch_dataset_structure(self):
         dataSetsStructure = self.get("dataSets.json", 
                                      params={
@@ -90,6 +106,42 @@ class Dhis2Client(object):
         categoryOptionCombosStructure=self._cocs_json_to_df(categoryOptionCombosStructure)
         return categoryOptionCombosStructure
     
+    def fetch_deg_structure(self):
+        dataElementGroupsStructure = self.get("dataElementGroups.json", 
+                                                     params={
+                                                            "paging":False,                                                          
+                                                            "fields":
+                                                                     "id,name"+
+                                                                     ",dataElements[id,name]"
+                                                            })['dataElementGroups']
+        
+        dataElementGroupsStructure=self._deg_json_to_df(dataElementGroupsStructure)
+        return dataElementGroupsStructure
+    
+    def fetch_indg_structure(self):
+        indicatorGroupsStructure = self.get("indicatorGroups.json", 
+                                                     params={
+                                                            "paging":False,                                                          
+                                                            "fields":
+                                                                     "id,name"+
+                                                                     ",indicators[id,name]"
+                                                            })['indicatorGroups']
+        
+        indicatorGroupsStructure=self._indg_json_to_df(indicatorGroupsStructure)
+        return indicatorGroupsStructure
+    
+    def fetch_oug_structure(self):
+        organisationUnitGroupsStructure = self.get("organisationUnitGroups.json", 
+                                                     params={
+                                                            "paging":False,                                                          
+                                                            "fields":
+                                                                     "id,name"+
+                                                                     ",organisationUnits[id,name]"
+                                                            })['organisationUnitGroups']
+        
+        organisationUnitGroupsStructure=self._oug_json_to_df(organisationUnitGroupsStructure)
+        return organisationUnitGroupsStructure
+    
     def metadata_country_habari_db_full_refresh(self,iso_code,base_path=None):
         if not base_path:
             metadata_root_path='s3://habari-public/Metadata/'+str(iso_code)+'/'+str(iso_code)+'_'
@@ -103,12 +155,20 @@ class Dhis2Client(object):
         
         dataSetsStructure=self.fetch_dataset_structure()
         dataSetsStructure.update({'dataElementsStructure':self.fetch_data_elements_structure()})
+        dataSetsStructure.update({'dataElementGroupsStructure':self.fetch_deg_structure()})
+        
         for key,item in dataSetsStructure.items():
             item.to_csv(metadata_root_path+key+suffix_path,index=False)
-            
-        self.fetch_organisation_units_structure().to_csv(ou_path+'organisationUnitsStructure'+suffix_path,index=False)
+        
+        organisationUnits={'organisationUnitsStructure':self.fetch_organisation_units_structure()}
+        organisationUnits.update({'organisationUnitGroupsStructure':self.fetch_oug_structure()})
+        for key,item in dataSetsStructure.items():
+            item.to_csv(ou_path+key+suffix_path,index=False)
         print('habari_'+str(iso_code)+'_db_updated')
-    
+        
+
+    ##################  AUXILIAR FUNCTIONS  ########################
+
     def _data_elements_json_to_df(self,df):
         df_list=[]
         for de in df:
@@ -127,6 +187,46 @@ class Dhis2Client(object):
             else:
                 df_list.append(pd.DataFrame({'DE_UID':de_uid,'DE_NAME':de_name,'CC_UID':cc,'DS_UID':[None]}))
         return pd.concat(df_list,ignore_index=True)
+    
+    def _num_den_text_processator(self,text,coc_default_uid):
+        from functools import partial
+        import re
+        if not text.isdecimal():
+            def word_splitter_format(word,coc_default_uid):
+                if "." in word:
+                    return word.split('.')
+                else:
+                    return [word,coc_default_uid]
+            text=re.sub(r'[#{}()]',' ',text)
+            text=re.sub(r'[*]',' ',text)
+            text=re.sub(r'[/]',' ',text)
+            word_token_list=re.findall(r'[\w.]+',text)
+            word_token_list=[partial(
+                                    word_splitter_format,
+                                    coc_default_uid=coc_default_uid
+                                    )(word=word) for word in word_token_list]
+            return pd.DataFrame.from_records(word_token_list,columns=['DE_UID','COC_UID'])
+        else:
+            return pd.DataFrame({'DE_UID':[None],'COC_UID':[None]})
+
+    def _indicators_json_to_df(self,json,coc_default_uid):
+        ind_df_list=[]
+        for ind in json:
+            ind_name=None
+            ind_uid=ind['id']
+            if 'name' in ind.keys():
+                ind_name=ind['name']
+            for key_type in ['numerator','denominator']:
+                if key_type in ind.keys():
+                    if ind[key_type]:
+                        ind_df_list.append(self._num_den_text_processator(
+                                                                ind[key_type],coc_default_uid=coc_default_uid
+                                                                    ).assign(
+                                                                            RELATION_TYPE=key_type.upper()
+                                                                            )
+                                          )
+        united_df=pd.concat(ind_df_list,ignore_index=True)
+        return united_df.assign(IND_UID=ind_uid).assign(IND_NAME=ind_name)
     
     def _datasets_json_to_df(self,df):
         df_list_ou=[]
@@ -168,6 +268,59 @@ class Dhis2Client(object):
 
 
         return pd.concat(coc_df_list,ignore_index=True)
+    
+    def _deg_json_to_df(self,df):
+        deg_df_list=[]
+        for deg in df:
+            deg_name=[None]
+            deg_uid=[deg['id']]
+            if 'name' in deg.keys():
+                deg_name=[deg['name']]
+            if 'dataElements' in deg.keys():
+                if deg['dataElements']:
+                    for deg_de in deg['dataElements']:
+                        deg_df_list.append(pd.DataFrame({'DEG_UID':deg_uid,'DEG_NAME':deg_name,'DE_UID':[deg_de['id']],'DE_NAME':[deg_de['name']]}))
+            else:
+                deg_df_list.append(pd.DataFrame({'DEG_UID':deg_uid,'DEG_NAME':deg_name,'DE_UID':[None],'DE_NAME':[None]}))
+
+
+        return pd.concat(deg_df_list,ignore_index=True)
+    
+    
+    def _indg_json_to_df(self,df):
+        indg_df_list=[]
+        for indg in df:
+            indg_name=[None]
+            indg_uid=[indg['id']]
+            if 'name' in indg.keys():
+                indg_name=[indg['name']]
+            if 'indicators' in indg.keys():
+                if indg['indicators']:
+                    for indg_ind in indg['indicators']:
+                        indg_df_list.append(pd.DataFrame({'INDG_UID':indg_uid,'INDG_NAME':indg_name,'IND_UID':[indg_ind['id']],'IND_NAME':[indg_ind['name']]}))
+            else:
+                indg_df_list.append(pd.DataFrame({'INDG_UID':indg_uid,'INDG_NAME':indg_name,'IND_UID':[None],'IND_NAME':[None]}))
+
+
+        return pd.concat(indg_df_list,ignore_index=True)
+    
+    
+    def _oug_json_to_df(self,df):
+        oug_df_list=[]
+        for oug in df:
+            oug_name=[None]
+            oug_uid=[oug['id']]
+            if 'name' in oug.keys():
+                oug_name=[oug['name']]
+            if 'organisationUnits' in oug.keys():
+                if oug['organisationUnits']:
+                    for oug_ou in oug['organisationUnits']:
+                        oug_df_list.append(pd.DataFrame({'OUG_UID':oug_uid,'OUG_NAME':oug_name,'OU_UID':[oug_ou['id']],'OU_NAME':[oug_ou['name']]}))
+            else:
+                oug_df_list.append(pd.DataFrame({'OUG_UID':oug_uid,'OUG_NAME':oug_name,'OU_UID':[None],'OU_NAME':[None]}))
+
+
+        return pd.concat(oug_df_list,ignore_index=True)
     
 
     def _outree_json_to_df(self,df):
