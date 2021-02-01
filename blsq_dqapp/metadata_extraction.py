@@ -9,6 +9,7 @@ import json
 import getpass
 import urllib
 from datetime import datetime
+from.periods import Periods
 
 
 class Dhis2Client(object):
@@ -166,6 +167,68 @@ class Dhis2Client(object):
             item.to_csv(ou_path+key+suffix_path,index=False)
         print('habari_'+str(iso_code)+'_db_updated')
         
+    def extract_reporting(self,report_type='REPORTING_RATE'):
+        pass
+    def extract_data(self,dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor,coc_default_name="default"):
+        path="analytics.json"
+        url_analytics = self.baseurl+"/api/"+ path
+        url_analytics =url_analytics+'?dimension='+self._dx_composer_feed(dx_descriptor)
+        url_analytics =url_analytics+'&dimension='+self._ou_composer_feed(ou_descriptor)
+        url_analytics =url_analytics+'&dimension='+self._pe_composer_feed(pe_start_date,pe_end_date,frequency)
+            
+        resp_analytics = self.session.get(url_analytics)
+        print(resp_analytics.request.path_url)
+
+        analyticsData=resp_analytics.json()['rows']
+        
+        coc_default_uid=self.fetch_coc_structure().query('COC_NAME=="'+coc_default_name+'"').COC_UID.values[0]
+        analyticsData=self._analytics_json_to_df(analyticsData,coc_default_uid=coc_default_uid)
+        return analyticsData
+    
+    def _ou_composer_feed(self,ou_descriptor):
+        for key in ou_descriptor.keys():
+            if key=='OUG':
+                pass
+            if key=='OU':
+                if len(ou_descriptor['OU'])>1:
+                    return 'ou:'+';'.join(ou_descriptor['OU'])
+
+                else:
+                    return 'ou:'+ou_descriptor['OU'][0]
+                
+    def _dx_composer_feed(self,dx_descriptor):
+        for key in dx_descriptor.keys():
+            if key=='DEG':
+                pass
+            if key=='DX':
+                if len(dx_descriptor['DX'])>1:
+                    return 'dx:'+';'.join(dx_descriptor['DX'])
+                else:
+                    return 'dx:'+dx_descriptor['DX'][0]
+                
+    def _pe_composer_feed(self,pe_start_date,pe_end_date,frequency):
+        pe_list=Periods.split([pe_start_date,pe_end_date],frequency)
+        if len(pe_list)>1:
+            return 'pe:'+';'.join(pe_list)
+        else:
+            return 'pe:'+pe_list[0]
+    
+    
+    def _analytics_json_to_df(self,json_data,coc_default_uid):
+        df=pd.DataFrame.from_records(json_data,columns=['DE_UID','OU_UID','PERIOD','VALUE'])
+        de_uid_splitted=df['DE_UID'].str.split('.',n=1,expand=True)
+        
+        if (de_uid_splitted.shape[1]==1):
+            de_uid_splitted=de_uid_splitted.rename(columns={0:'DE_UID'})
+            de_uid_splitted['COC_UID']=coc_default_uid
+        else:
+            de_uid_splitted=de_uid_splitted.rename(columns={0:'DE_UID',1:'COC_UID'})
+            de_uid_splitted['COC_UID']=de_uid_splitted['COC_UID'].fillna(coc_default_uid)
+        df=pd.concat([df.drop('DE_UID',axis=1),de_uid_splitted],axis=1)
+                     
+        return df
+    
+        
 
     ##################  AUXILIAR FUNCTIONS  ########################
 
@@ -209,9 +272,9 @@ class Dhis2Client(object):
         else:
             return pd.DataFrame({'DE_UID':[None],'COC_UID':[None]})
 
-    def _indicators_json_to_df(self,json,coc_default_uid):
+    def _indicators_json_to_df(self,json_data,coc_default_uid):
         ind_df_list=[]
-        for ind in json:
+        for ind in json_data:
             ind_name=None
             ind_uid=ind['id']
             if 'name' in ind.keys():
