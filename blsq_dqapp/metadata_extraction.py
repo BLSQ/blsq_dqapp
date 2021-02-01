@@ -181,9 +181,13 @@ class Dhis2Client(object):
 
         analyticsData=resp_analytics.json()['rows']
         
-        coc_default_uid=self.fetch_coc_structure().query('COC_NAME=="'+coc_default_name+'"').COC_UID.values[0]
-        analyticsData=self._analytics_json_to_df(analyticsData,coc_default_uid=coc_default_uid)
-        return analyticsData
+        if not analyticsData:
+            print( "No Data in DB")
+            pass 
+        else:
+            coc_default_uid=self.fetch_coc_structure().query('COC_NAME=="'+coc_default_name+'"').COC_UID.values[0]
+            analyticsData=self._analytics_json_to_df(analyticsData,coc_default_uid=coc_default_uid)
+            return analyticsData
     
     def _ou_composer_feed(self,ou_descriptor):
         for key in ou_descriptor.keys():
@@ -221,9 +225,12 @@ class Dhis2Client(object):
         if (de_uid_splitted.shape[1]==1):
             de_uid_splitted=de_uid_splitted.rename(columns={0:'DE_UID'})
             de_uid_splitted['COC_UID']=coc_default_uid
-        else:
+        elif (de_uid_splitted.shape[1]>1):
             de_uid_splitted=de_uid_splitted.rename(columns={0:'DE_UID',1:'COC_UID'})
             de_uid_splitted['COC_UID']=de_uid_splitted['COC_UID'].fillna(coc_default_uid)
+        else:
+            print('No Data')
+            pass
         df=pd.concat([df.drop('DE_UID',axis=1),de_uid_splitted],axis=1)
                      
         return df
