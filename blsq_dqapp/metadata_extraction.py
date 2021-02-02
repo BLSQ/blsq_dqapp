@@ -163,7 +163,7 @@ class Dhis2Client(object):
         
         organisationUnits={'organisationUnitsStructure':self.fetch_organisation_units_structure()}
         organisationUnits.update({'organisationUnitGroupsStructure':self.fetch_oug_structure()})
-        for key,item in dataSetsStructure.items():
+        for key,item in organisationUnits.items():
             item.to_csv(ou_path+key+suffix_path,index=False)
         print('habari_'+str(iso_code)+'_db_updated')
         
