@@ -13,7 +13,7 @@ from.periods import Periods
 
 
 class Dhis2Client(object):
-    def __init__(self,host,full_url=False):
+    def __init__(self,host,full_url=False,optional_prefix=None):
         
         if host.startswith('http'):
             self.baseurl = host
@@ -28,9 +28,13 @@ class Dhis2Client(object):
             self.baseurl = "https://"+user+":"+pwd+"@"+host
         
         self.session = requests.Session()
+        self.optional_prefix=optional_prefix
 
     def get(self, path, params=None):
-        url = self.baseurl+"/api/"+path
+        if self.optional_prefix:
+            url = self.baseurl+self.optional_prefix+"/api/"+path
+        else:
+            url = self.baseurl+"/api/"+path
         resp = self.session.get(url, params=params)
         print(resp.request.path_url)
         return resp.json()
