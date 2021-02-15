@@ -10,6 +10,8 @@ import getpass
 import urllib
 from datetime import datetime
 from.periods import Periods
+from .geometry import geometrify
+import geopandas
 
 
 class Dhis2Client(object):
@@ -170,6 +172,37 @@ class Dhis2Client(object):
         for key,item in organisationUnits.items():
             item.to_csv(ou_path+key+suffix_path,index=False)
         print('habari_'+str(iso_code)+'_db_updated')
+
+
+    def get_geodataframe(self, geometry_type=None):
+            filters = []
+            if geometry_type == "point":
+                filters.extend("featureType:eq:POINT")
+            elif geometry_type == "shape":
+                filters.extend("featureType:in:[POLYGON,MULTI_POLYGON]")
+            elif geometry_type == None:
+                pass
+            else:
+                raise Exception("unsupported geometry type '" +
+                                geometry_type+"'? Should be point,shape or None")
+    
+            params = {
+                "fields": "id,name,coordinates,geometry,level",
+                "paging": "false"
+            }
+    
+            if len(filters) > 0:
+                params["filter"] = "".join(filters),
+            orgunits = self.get("organisationUnits", params)["organisationUnits"]
+            print(orgunits)
+            geometrify(orgunits)
+    
+            df = pd.DataFrame(orgunits)
+    
+            gdf = geopandas.GeoDataFrame(df)
+    
+            return gdf
+
         
     def extract_reporting(self,report_type='REPORTING_RATE'):
         pass
