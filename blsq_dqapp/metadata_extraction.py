@@ -194,12 +194,14 @@ class Dhis2Client(object):
             if len(filters) > 0:
                 params["filter"] = "".join(filters),
             orgunits = self.get("organisationUnits", params)["organisationUnits"]
-            print(orgunits)
+            #print(orgunits)
             geometrify(orgunits)
     
             df = pd.DataFrame(orgunits)
     
             gdf = geopandas.GeoDataFrame(df)
+            gdf=gdf.rename(columns={'id':'OU_UID','name':'OU_NAME'})
+            gdf.columns=gdf.columns.upper()
     
             return gdf
 
