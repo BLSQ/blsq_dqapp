@@ -201,7 +201,7 @@ class Dhis2Client(object):
     
             gdf = geopandas.GeoDataFrame(df)
             gdf=gdf.rename(columns={'id':'OU_UID','name':'OU_NAME'})
-            gdf.columns=gdf.columns.upper()
+            gdf.columns=gdf.columns.str.upper()
     
             return gdf
 
