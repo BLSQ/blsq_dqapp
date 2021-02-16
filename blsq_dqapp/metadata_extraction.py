@@ -210,7 +210,10 @@ class Dhis2Client(object):
         pass
     def extract_data(self,dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor,coc_default_name="default"):
         path="analytics.json"
-        url_analytics = self.baseurl+"/api/"+ path
+        if self.optional_prefix:
+            url_analytics = self.baseurl+self.optional_prefix+"/api/"+path
+        else:
+            url_analytics = self.baseurl+"/api/"+path
         url_analytics =url_analytics+'?dimension='+self._dx_composer_feed(dx_descriptor)
         url_analytics =url_analytics+'&dimension='+self._ou_composer_feed(ou_descriptor)
         url_analytics =url_analytics+'&dimension='+self._pe_composer_feed(pe_start_date,pe_end_date,frequency)
