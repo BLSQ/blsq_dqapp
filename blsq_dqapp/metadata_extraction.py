@@ -195,7 +195,7 @@ class Dhis2Client(object):
                 params["filter"] = "".join(filters),
             orgunits = self.get("organisationUnits", params)["organisationUnits"]
             #print(orgunits)
-            geometrify(orgunits)
+            #geometrify(orgunits)
     
             df = pd.DataFrame(orgunits)
     
