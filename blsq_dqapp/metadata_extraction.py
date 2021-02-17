@@ -201,7 +201,7 @@ class Dhis2Client(object):
                                                              ",programStages[id,name,programStageDataElements[dataElement[id,name,code,CvalueType,optionSet[options[id,name,code]]]"
                                                     })
 
-    return programDescription
+        return programDescription
 
 
     def get_geodataframe(self, geometry_type=None):
