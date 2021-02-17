@@ -98,6 +98,6 @@ def metadata_labeling(df,metadata_dict):
         if key+'_UID' in df.columns:
             df[key+'_NAME']=df[key+'_UID'].map(metadata_dict[key])
     for key in [col for col in df.columns if col.startswith('LEVEL_')]:
-        key=key[:-4]
-        df[key+'_NAME']=df[key+'_UID'].map(metadata_dict['OU'])
+        print(key[0:-4])
+        df[key[0:-4]+'_NAME']=df[key[0:-4]+'_UID'].map(metadata_dict['OU'])
     return df
