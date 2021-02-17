@@ -4,8 +4,6 @@ import numpy as np
 import requests
 import urllib.parse
 import pandas as pd
-import s3fs
-import json
 import getpass
 import urllib
 from datetime import datetime
@@ -172,6 +170,38 @@ class Dhis2Client(object):
         for key,item in organisationUnits.items():
             item.to_csv(ou_path+key+suffix_path,index=False)
         print('habari_'+str(iso_code)+'_db_updated')
+        
+    def fetch_tracked_entity_instances(self, program_id, orgunit_id,page_size=40, fetch_all = False):
+        
+        tei_url='trackedEntityInstances.json'
+        tei_url=tei_url+"?ou="+orgunit_id+"&ouMode=DESCENDANTS"
+        tei_url=tei_url+"&fields=:all,enrollments[:all,events[:all]]"
+        tei_url=tei_url+"&program="+program_id
+        tei_url=tei_url+"&totalPages=true&pageSize="+str(page_size)
+        
+        tracked_entity_instances = self.get(tei_url)
+        num_pages = tracked_entity_instances["pager"]["pageCount"]
+
+        print(tracked_entity_instances["pager"])
+        if fetch_all :
+            for page in range(2, num_pages + 1) : 
+                page_url_suffix="&page="+str(page)
+                other_pages_instances = self.get(tei_url+page_url_suffix) 
+                tracked_entity_instances["trackedEntityInstances"].extend(other_pages_instances["trackedEntityInstances"])
+                
+        return tracked_entity_instances["trackedEntityInstances"]
+
+    def fetch_program_description(self, program_id):
+        
+        programDescription = self.get("programs/"+program_id+".json", 
+                                             params={                                                     
+                                                    "fields":
+                                                             "id,name"+
+                                                             ",programTrackedEntityAttributes[id,name,trackedEntityAttribute[id,name,code,valueType]]"+
+                                                             ",programStages[id,name,programStageDataElements[dataElement[id,name,code,CvalueType,optionSet[options[id,name,code]]]"
+                                                    })
+
+    return programDescription
 
 
     def get_geodataframe(self, geometry_type=None):
