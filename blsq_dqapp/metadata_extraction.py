@@ -38,13 +38,6 @@ class Dhis2Client(object):
         resp = self.session.get(url, params=params)
         print(resp.request.path_url)
         return resp.json()
-
-    def fetch_program_description(self, program_id):
-        programDescription = self.get("programs/"+program_id+".json", params={
-            "fields":"id,name,categoryCombo[id,name,categoryOptionCombos[id,name]]"+
-            ",trackedEntityType[id,name,code,trackedEntityTypeAttributes[id,name,trackedEntityAttribute[id,name,code,valueType,optionSet[options[id,name,code]]]]]"+
-            ",programStages[id,name,programStageDataElements[compulsory,dataElement[id,name,code,valueType,optionSet[options[id,name,code]]]]"})
-        return programDescription
     
     def fetch_organisation_units_structure(self):
         organisationUnitsStructure=self.get("organisationUnits.json", 
@@ -198,7 +191,7 @@ class Dhis2Client(object):
                                                     "fields":
                                                              "id,name"+
                                                              ",programTrackedEntityAttributes[id,name,trackedEntityAttribute[id,name,code,valueType]]"+
-                                                             ",programStages[id,name,programStageDataElements[dataElement[id,name,code,CvalueType,optionSet[options[id,name,code]]]"
+                                                             ",programStages[id,name,programStageDataElements[dataElement[id,name,code,valueType,optionSet[options[id,name,code]]]"
                                                     })
 
         return programDescription
@@ -236,8 +229,14 @@ class Dhis2Client(object):
             return gdf
 
         
-    def extract_reporting(self,report_type='REPORTING_RATE'):
-        pass
+    def extract_reporting(self,datasets,pe_start_date,pe_end_date,frequency,ou_descriptor,report_types=['REPORTING_RATE'],):
+        for dataset in datasets:
+            for report_type in report_types:
+                dx_descriptor=[dataset+'.'+report_type]
+                
+        return self.extract_data(dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor)
+        
+    
     def extract_data(self,dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor,coc_default_name="default"):
         path="analytics.json"
         if self.optional_prefix:
@@ -502,3 +501,100 @@ class Dhis2Client(object):
 
 
         return pd.concat(ou_df_list,ignore_index=True)
+
+    def _program_json_to_df(self,json):
+    
+        prog_id=[json['id']]
+        if 'name' in json:
+            prog_name=[json['id']]
+        else:
+            prog_name=[None]
+    
+        if 'programTrackedEntityAttributes' in json:
+            program_df_attributes_list=[]
+            for attribute in json['programTrackedEntityAttributes']:
+                prog_eti_att_id=[attribute['id']]
+                prog_eti_att_name=[attribute['name']]
+                eti_att_id=[attribute['trackedEntityAttribute']['id']]
+                eti_att_name=[attribute['trackedEntityAttribute']['name']]
+                eti_att_value_type=[attribute['trackedEntityAttribute']['valueType']]
+                program_df_attributes_list.append(pd.DataFrame({'PROGRAM_T_UID':prog_id,
+                                                                'PROGRAM_T_NAME':prog_name,
+                                                                'PROGRAM_T_ETI_DATA_UID':prog_eti_att_id,'PROGRAM_T_ETI_DATA_NAME':prog_eti_att_name,
+                                                                'ETI_ATT_UID':eti_att_id,'ETI_ATT_NAME':eti_att_name,'ETI_ATT_VALUE_TYPE':eti_att_value_type                                                               
+                                                               }))
+        if 'programStages' in json:
+            program_df_program_stage_list=[]
+            for ps in json['programStages']:
+                prog_ps_id=[ps['id']]
+                prog_ps_name=[ps['name']]
+                for ps_de in ps['programStageDataElements']:
+                    de=ps_de['dataElement']
+                    de_name=[de['name']]
+                    de_id=[de['id']]
+                    de_code=[None]
+                    if 'code' in de:
+                        de_code=[de['code']]
+                    de_value_type=[de['valueType']]
+    
+                    de_dict={'PROGRAM_T_UID':prog_id,
+                             'PROGRAM_T_NAME':prog_name,
+                             'PROGRAM_T_STAGE_UID':prog_ps_id,'PROGRAM_T_STAGE_NAME':prog_ps_name,
+                             'DE_UID':de_id,'DE_NAME':de_name,'DE_CODE':de_code,'DE_VALUE_TYPE':de_value_type,                                                          
+                            }
+                    if 'optionSet'in de:
+                        option_dict={}
+                        i=1
+                        for option in de['optionSet']['options']:
+                            option_name=[option['name']]
+                            option_id=[option['id']]
+                            option_code=[None]
+                            if 'code' in option:
+                                option_code=[option['code']]
+                            
+                            option_dict.update({'OPTION_'+str(i)+'_UID':option_id,
+                                                'OPTION_'+str(i)+'_NAME':option_name,
+                                                'OPTION_'+str(i)+'_CODE':option_code})
+                            i=i+1 
+                            
+                            
+                        de_dict.update(option_dict)
+                    program_df_program_stage_list.append(pd.DataFrame(de_dict))
+        return {"programTracker_programTrackedEntityAttributes":pd.concat(program_df_attributes_list,ignore_index=True),"programTracker_programStagesDataElements":pd.concat(program_df_program_stage_list,ignore_index=True)}
+
+    def _program_data_json_to_df(self,json):
+        program_df_data_ins_df=[]
+        for ins in json:
+            tei_type=ins['trackedEntityType']
+            tei_instance_id=ins['trackedEntityInstance']
+            org_unit_id=ins['orgUnit']
+            date_register=ins['created']
+            storedby=ins['storedBy']
+            enroll=ins['enrollments'][0]
+        #    enroll_date=enroll['enrollmentDate']
+        #    enroll_status=enroll['status']
+    
+            ins_dict={'TEI_UID':tei_type,'TEI_INS_UID':tei_instance_id,'OU_UID':org_unit_id,'DATE_REGISTER':date_register,'STORED_BY':storedby}
+    
+            att_dict={}
+            for ins_att in ins['attributes']:
+                ins_att_id=ins_att['attribute']
+                #ins_att_code=ins_att['code'],
+                #ins_att_name=ins_att['displayName']
+                ins_att_value=ins_att['value']
+                att_dict.update({ins_att_id:[ins_att_value]})
+    
+            event_dict={}
+            for event in enroll['events']:
+    
+                #event_id=event['id']
+                ins_event_ps=event['programStage']
+    
+                for de in event['dataValues']:
+                    de_id=de['dataElement']
+                    de_value=de['value']
+                    event_dict.update({ins_event_ps+'_'+de_id:de_value})
+            ins_dict.update(att_dict)
+            ins_dict.update(event_dict)
+            program_df_data_ins_df.append(pd.DataFrame(ins_dict))
+        return program_df_data_ins_df
