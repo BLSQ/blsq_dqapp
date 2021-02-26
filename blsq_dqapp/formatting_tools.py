@@ -101,3 +101,36 @@ def metadata_labeling(df,metadata_dict):
         print(key[0:-4])
         df[key[0:-4]+'_NAME']=df[key[0:-4]+'_UID'].map(metadata_dict['OU'])
     return df
+
+
+def text_xlms_flattening(text):
+    import re
+    
+    patter_uid=r'id="\w*"'
+    pattern_names=r'>\S*</'
+    de_uids=re.findall(patter_uid,text)
+    
+    de_uids=[de_uid[4:-1] for de_uid in de_uids]
+    
+    de_names=re.findall(pattern_names,text)
+    de_names=[de_name[1:-2] for de_name in de_names]
+    return pd.concat([de_uids,de_names],axis=1,ignore_index=True)
+    
+def de_reporting_structure_info(de_uids,de_df,ds_ou_df,ou_tree_df):
+    
+    sub_dim=['DE_UID','DE_NAME','DS_UID','DS_NAME','FREQUENCY','LEVEL']
+    
+    de_sub=de_df.query('DE_UID in @de_uids')[['DE_UID','DE_NAME','DS_UID']].drop_duplicates()
+    ds_info_df=de_sub.merge(ds_ou_df,on='DE_UID').merge(ou_tree_df,on='OU_UID')
+    ds_info_df=ds_info_df[sub_dim]
+    
+    group_dim=['DE_UID','DS_UID']
+    ds_level_counts=ds_info_df.groupby(group_dim)['LEVEL'].value_counts().reset_index(name='LEVEL_TOTAL_DS')
+    ou_level_counts=ou_tree_df['LEVEL'].value_counts().reset_index(name='LEVEL_TOTAL_DHIS2')
+    ds_level_counts=ds_level_counts.join(ou_level_counts,on='LEVEL')
+    ds_level_counts['LEVEL_PCT_ON_TOTAL']=(ds_level_counts['LEVEL_TOTAL_DS']*100/ds_level_counts['LEVEL_TOTAL_DHIS2']).round(2)
+    
+    
+    ds_info_df=ds_info_df.drop('LEVEL',axis=1).drop_duplicates().merge(ds_level_counts,on=['DE_UID','DS_UID'])
+    
+    return ds_info_df
