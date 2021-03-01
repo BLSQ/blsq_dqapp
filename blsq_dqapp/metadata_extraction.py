@@ -230,7 +230,7 @@ class Dhis2Client(object):
             return gdf
 
         
-    def extract_reporting(self,datasets,pe_start_date,pe_end_date,frequency,ou_descriptor,report_types=['REPORTING_RATE'],):
+    def extract_reporting(self,datasets,pe_start_date,pe_end_date,frequency,ou_descriptor,report_types=['REPORTING_RATE']):
         dx_descriptor_list=[]
         for dataset in datasets:
             for report_type in report_types:
