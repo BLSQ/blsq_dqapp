@@ -87,6 +87,7 @@ class Dhis2Client(object):
                                             "paging":False,                                                          
                                             "fields":
                                                      "id,name,organisationUnits"+
+                                                     ",periodType"+
                                                      ",dataSetElements[dataElement]"
                                             })['dataSets']
         
@@ -230,10 +231,12 @@ class Dhis2Client(object):
 
         
     def extract_reporting(self,datasets,pe_start_date,pe_end_date,frequency,ou_descriptor,report_types=['REPORTING_RATE'],):
+        dx_descriptor_list=[]
         for dataset in datasets:
             for report_type in report_types:
-                dx_descriptor=[dataset+'.'+report_type]
-                
+                dx_descriptor_list.append(dataset+'.'+report_type)
+        dx_descriptor={'DX':dx_descriptor_list}
+        
         return self.extract_data(dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor)
         
     
@@ -376,20 +379,23 @@ class Dhis2Client(object):
             ou=[None]
             ds_name=[None]
             ds_uid=[ds['id']]
+            frequency=[None]
+            if 'periodType' in ds.keys():
+                frequency=[ds['periodType']]
             if 'name' in ds.keys():
                 ds_name=[ds['name']]
             if 'organisationUnits' in ds.keys():
                 if ds['organisationUnits']:
                     for ou in ds['organisationUnits']:
-                        df_list_ou.append(pd.DataFrame({'DS_UID':ds_uid,'DS_NAME':ds_name,'OU_UID':[ou['id']]}))
+                        df_list_ou.append(pd.DataFrame({'DS_UID':ds_uid,'DS_NAME':ds_name,'OU_UID':[ou['id']],'FREQUENCY':frequency}))
             else:
-                df_list_ou.append(pd.DataFrame({'DS_UID':ds_uid,'DS_NAME':ds_name,'OU_UID':[None]}))
+                df_list_ou.append(pd.DataFrame({'DS_UID':ds_uid,'DS_NAME':ds_name,'OU_UID':[None],'FREQUENCY':frequency}))
             if 'dataSetElements' in ds.keys():
                 if ds['dataSetElements']:
                     for ds_de in ds['dataSetElements']:
-                        df_list_de.append(pd.DataFrame({'DS_UID':ds_uid,'DS_NAME':ds_name,'DE_UID':[ds_de['dataElement']['id']]}))
+                        df_list_de.append(pd.DataFrame({'DS_UID':ds_uid,'DS_NAME':ds_name,'DE_UID':[ds_de['dataElement']['id']],'FREQUENCY':frequency}))
             else:
-                df_list_de.append(pd.DataFrame({'DS_UID':ds_uid,'DS_NAME':ds_name,'DE_UID':[None]}))
+                df_list_de.append(pd.DataFrame({'DS_UID':ds_uid,'DS_NAME':ds_name,'DE_UID':[None],'FREQUENCY':frequency}))
         
         return {"dataSetsStructure_dataElements":pd.concat(df_list_de,ignore_index=True),"dataSetsStructure_organisationUnits":pd.concat(df_list_ou,ignore_index=True)}
 
