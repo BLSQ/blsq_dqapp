@@ -121,7 +121,7 @@ def de_reporting_structure_info(de_uids,de_df,ds_ou_df,ou_tree_df):
     sub_dim=['DE_UID','DE_NAME','DS_UID','DS_NAME','FREQUENCY','LEVEL']
     
     de_sub=de_df.query('DE_UID in @de_uids')[['DE_UID','DE_NAME','DS_UID']].drop_duplicates()
-    ds_info_df=de_sub.merge(ds_ou_df,on='DE_UID').merge(ou_tree_df,on='OU_UID')
+    ds_info_df=de_sub.merge(ds_ou_df,on='DS_UID').merge(ou_tree_df,on='OU_UID')
     ds_info_df=ds_info_df[sub_dim]
     
     group_dim=['DE_UID','DS_UID']
