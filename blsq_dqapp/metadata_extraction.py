@@ -30,13 +30,14 @@ class Dhis2Client(object):
         self.session = requests.Session()
         self.optional_prefix=optional_prefix
 
-    def get(self, path, params=None):
+    def get(self, path, params=None,silent=False):
         if self.optional_prefix:
             url = self.baseurl+self.optional_prefix+"/api/"+path
         else:
             url = self.baseurl+"/api/"+path
         resp = self.session.get(url, params=params)
-        print(resp.request.path_url)
+        if not silent:
+            print(resp.request.path_url)
         return resp.json()
     
     def fetch_organisation_units_structure(self):
@@ -57,6 +58,7 @@ class Dhis2Client(object):
                                                 "paging":False,                                                          
                                                 "fields":
                                                          "id,name,categoryCombo"+
+                                                         ",domainType"+
                                                          ",dataSetElements[dataSet]"
                                                 })['dataElements']
         
@@ -237,10 +239,10 @@ class Dhis2Client(object):
                 dx_descriptor_list.append(dataset+'.'+report_type)
         dx_descriptor={'DX':dx_descriptor_list}
         
-        return self.extract_data(dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor)
+        return self.extract_data(dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor).rename(columns={'DE_UID':'DS_UID','COC_UID':'REPORTING_TYPE'})
         
     
-    def extract_data(self,dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor,coc_default_name="default"):
+    def extract_data(self,dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor,coc_default_name="default",silent=False):
         path="analytics.json"
         if self.optional_prefix:
             url_analytics = self.baseurl+self.optional_prefix+"/api/"+path
@@ -250,8 +252,9 @@ class Dhis2Client(object):
         url_analytics =url_analytics+'&dimension='+self._ou_composer_feed(ou_descriptor)
         url_analytics =url_analytics+'&dimension='+self._pe_composer_feed(pe_start_date,pe_end_date,frequency)
             
-        resp_analytics = self.session.get(url_analytics)
-        print(resp_analytics.request.path_url)
+        resp_analytics = self.session.get(url_analytics,silent)
+        if not silent:
+            print(resp_analytics.request.path_url)
 
         analyticsData=resp_analytics.json()['rows']
         
@@ -318,7 +321,10 @@ class Dhis2Client(object):
         for de in df:
             cc=[None]
             de_name=[None]
+            domain=[None]
             de_uid=[de['id']]
+            if 'domainType' in de.keys():
+                domain=[de['domainType']]
             if 'name' in de.keys():
                 de_name=[de['name']]
             if 'categoryCombo' in de.keys():
@@ -327,7 +333,7 @@ class Dhis2Client(object):
             if 'dataSetElements' in de.keys():
                 if de['dataSetElements']:
                     for ds_de in de['dataSetElements']:
-                        df_list.append(pd.DataFrame({'DE_UID':de_uid,'DE_NAME':de_name,'CC_UID':cc,'DS_UID':[ds_de['dataSet']['id']]}))
+                        df_list.append(pd.DataFrame({'DE_UID':de_uid,'DE_NAME':de_name,'CC_UID':cc,'DS_UID':[ds_de['dataSet']['id']],'DOMAIN':domain}))
             else:
                 df_list.append(pd.DataFrame({'DE_UID':de_uid,'DE_NAME':de_name,'CC_UID':cc,'DS_UID':[None]}))
         return pd.concat(df_list,ignore_index=True)
