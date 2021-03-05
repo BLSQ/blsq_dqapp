@@ -252,7 +252,7 @@ class Dhis2Client(object):
         url_analytics =url_analytics+'&dimension='+self._ou_composer_feed(ou_descriptor)
         url_analytics =url_analytics+'&dimension='+self._pe_composer_feed(pe_start_date,pe_end_date,frequency)
             
-        resp_analytics = self.session.get(url_analytics,silent)
+        resp_analytics = self.session.get(url_analytics)
         if not silent:
             print(resp_analytics.request.path_url)
 
