@@ -269,8 +269,8 @@ class Dhis2Client(object):
     def _ou_composer_feed(self,ou_descriptor):
         for key in ou_descriptor.keys():
             if key=='OUG':
-                groups=';'.join(['OU_GROUP-'+group for group in ou_descriptor[0]])
-                ancestor=ou_descriptor[1]
+                groups=';'.join(['OU_GROUP-'+group for group in ou_descriptor['OUG'][0]])
+                ancestor=ou_descriptor['OUG'][1]
                 return 'ou:'+groups+';'+ancestor
             if key=='OU':
                 if len(ou_descriptor['OU'])>1:
