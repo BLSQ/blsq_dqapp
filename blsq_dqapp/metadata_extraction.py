@@ -484,6 +484,7 @@ class Dhis2Client(object):
             ou_level=[None]
             ou_name=[None]
             ou_uid=[ou['id']]
+            ancestors_list=[]
             if 'name' in ou.keys():
                 ou_name=[ou['name']]
             ou_dict={'OU_UID':ou_uid,
