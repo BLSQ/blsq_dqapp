@@ -30,12 +30,15 @@ class Dhis2Client(object):
         self.session = requests.Session()
         self.optional_prefix=optional_prefix
 
-    def get(self, path, params=None,silent=False):
+    def get(self, path, params=None,silent=False,verify=True):
         if self.optional_prefix:
             url = self.baseurl+self.optional_prefix+"/api/"+path
         else:
             url = self.baseurl+"/api/"+path
-        resp = self.session.get(url, params=params)
+        if verify:
+            resp = self.session.get(url, params=params)
+        if not verify:
+            resp = self.session.get(url, params=params,verify=False)
         if not silent:
             print(resp.request.path_url)
         return resp.json()
