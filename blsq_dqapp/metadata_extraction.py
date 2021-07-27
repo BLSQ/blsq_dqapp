@@ -43,6 +43,19 @@ class Dhis2Client(object):
             print(resp.request.path_url)
         return resp.json()
     
+    def post(self, path, data=None,json=None,silent=False,verify=True):
+        if self.optional_prefix:
+            url = self.baseurl+self.optional_prefix+"/api/"+path
+        else:
+            url = self.baseurl+"/api/"+path
+        if verify:
+            resp = self.session.post(url, data=data,json=json)
+        if not verify:
+            resp = self.session.post(url, data=data,json=json,verify=False)
+        if not silent:
+            print(resp.request.path_url)
+        return resp.json()
+    
     def fetch_organisation_units_structure(self):
         organisationUnitsStructure=self.get("organisationUnits.json", 
                                              params={
@@ -268,6 +281,66 @@ class Dhis2Client(object):
             coc_default_uid=self.fetch_coc_structure().query('COC_NAME=="'+coc_default_name+'"').COC_UID.values[0]
             analyticsData=self._analytics_json_to_df(analyticsData,coc_default_uid=coc_default_uid)
             return analyticsData
+            
+        
+        
+    def extract_data_db(self,dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor,coc_default_name="default",silent=False):
+        path="dataValues"
+        periods=Periods.split([pe_start_date,pe_end_date],frequency)
+        ous=ou_descriptor['OU']
+        de_list=dx_descriptor['DX']
+        
+        if self.optional_prefix:
+            url_db_base = self.baseurl+self.optional_prefix+"/api/"+path
+        else:
+            url_db_base = self.baseurl+"/api/"+path
+            
+        DBData=[]
+        for de in de_list:
+            print(f'{de} requested')
+            if '.' in de:
+                coc=de_list.split('.')[1]
+                coc=de_list.split('.')[0]
+            else:
+                coc=None
+            for period in periods:
+                for ou in ous:
+
+                    
+                    url_db =url_db_base+'?de='+de+'&pe='+period+'&ou='+ou
+                    if coc:
+                        url_db=url_db+'&co='+coc
+                        
+                    resp_db = self.session.get(url_db)
+                    
+                    if not silent:
+                        print(resp_db.request.path_url)
+                    try:
+                        value_dict={'DE_UID':de,'PERIOD':period,'OU_UID':ou,'VALUE':resp_db.json()[0]}
+                        if coc: 
+                            value_dict.update({'COC_UID':[coc]})
+                        DBData.append(value_dict)
+                    except:
+                        pass
+
+        
+        if not DBData:
+            print( "No Data in DB")
+            pass 
+        else:
+            return DBData
+            
+    def post_data_aggregate(self,df,endpoint="dataValues",data_label='VALUE',postDataset=True):
+        
+        if postDataset:
+            http_list=self._json_post_aggregate_generator_from_df_on_ds(df,data_label=data_label)
+        else:
+            http_list=self._json_generator_from_df_raw(df,data_label=data_label)
+        
+        postAnswers=[]
+        for http in http_list:
+            postAnswers.append([http['period'],http['orgUnit'],self.session.post(endpoint,json=http)])
+        return postAnswers
     
     def _ou_composer_feed(self,ou_descriptor):
         for key in ou_descriptor.keys():
@@ -524,7 +597,7 @@ class Dhis2Client(object):
     
         prog_id=[json['id']]
         if 'name' in json:
-            prog_name=[json['id']]
+            prog_name=[json['name']]
         else:
             prog_name=[None]
     
@@ -616,3 +689,38 @@ class Dhis2Client(object):
             ins_dict.update(event_dict)
             program_df_data_ins_df.append(pd.DataFrame(ins_dict))
         return program_df_data_ins_df
+    
+    def _json_post_aggregate_generator_from_df_on_ds(self,global_df,data_label='VALUE'):
+        periods=global_df.PERIOD.unique()
+        ous=global_df.OU_UID.unique()
+        ds_uids=global_df.DS_OUT_UID.unique()
+        http_lists=[]
+        for ds in ds_uids:
+            for period in periods:
+                for ou in ous:
+                    subdf=global_df.query('OU_UID=="'+ou+'"').query('PERIOD=="'+period+'"')
+                    dataValueList=[]
+                    for ind,row in subdf.iterrows():
+                        dataValueList.append({"dataElement": row['DE_OUT_UID'], 
+                                                  "value": row[data_label]})
+                    
+                    http_unit={
+                              "dataSet": ds,
+                              "period": period,
+                              "orgUnit": ou,
+                              "dataValues": dataValueList
+                              }
+                    http_lists.append(http_unit)
+        return http_lists
+    
+    
+    
+    def _json_generator_from_df_raw(self,global_df,data_label='VALUE'):
+
+        http_lists=[]
+        for ind,row in global_df.iterrows():
+            dataValueList.append({"dataElement": row['DE_OUT_UID'],
+                                  "period":row['PERIOD'],
+                                  "orgUnit":row['OU_UID'],
+                                  "value": row[data_label]})
+        return http_lists
