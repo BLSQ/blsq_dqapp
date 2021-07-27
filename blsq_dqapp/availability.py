@@ -4,6 +4,7 @@ Created on Tue Jan 12 21:20:18 2021
 
 @author: Fernando-Bluesquare
 """
+from functools import partial
 
 def cross_join(df_left,df_right):
     df_crossed=df_left.assign(join=1).merge(df_right.assign(join=1)).drop('join',axis=1)
@@ -18,6 +19,36 @@ def de_coc_ou_uids_table_generator(dataset_ou,de_df):
 
 def availability_tree_table_maker(dataset_ou,de_df,period_table):
     return cross_join(de_coc_ou_uids_table_generator(dataset_ou,de_df),period_table)
+
+def _analytics_lvl_function_cleaner(df,level_max):
+    level=df.LEVEL.max()
+    if level<level_max:
+        df['ERASE']=df.OU_UID.apply(lambda x: x in lvl_uids_dict[level])
+        return df
+    else:
+        df['ERASE']=False
+        return df
+
+
+def direct_ancestor_cleaner(df_ous):
+    from functools import partial
+    levels=df_ous.LEVEL.sort_values(ascending=True).unique().tolist()
+    lvl_uids_dict={}
+    for level in levels[:-1]:
+        lvl_uids_dict.update({
+                            level:df_ous['LEVEL_'+str(level)+'_UID'].unique().tolist()
+                            })
+
+    df_ous_processed=df_ous.groupby('LEVEL',index=False).partial(_analytics_lvl_function_cleaner,level_max=levels[0])
+    return df_ous_processed.query('ERASE==0')
+
+
+def analytics_tree_dependencies_cleaner(de_list,de_df,dataset_ou,ou_tree_df):
+    ds_de=de_df.query('DE_UID in @de_list')[['DE_UID','DS_UID']].drop_duplicates()
+    ds_de_ou=ds_de.merge(dataset_ou,on=['DS_UID'])
+    ds_de_ou=merge(ou_tree_df,on='OU_UID')
+    
+    return ds_de_ou.groupby('DE_UID',as_index=False).direct_ancestor_cleaner()
 
 def de_ou_coverage_dict(dataset_ou,de_coc_ou_uids,ou_tree_df):
     #Using the late table we obtain a table that determines the belonging of an DE for a OU
