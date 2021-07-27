@@ -125,10 +125,10 @@ def de_reporting_structure_info(de_uids,de_df,ds_ou_df,ou_tree_df):
     ds_info_df=ds_info_df[sub_dim]
     
     group_dim=['DE_UID','DS_UID']
-    ds_level_counts=ds_info_df.groupby(group_dim)['LEVEL'].value_counts().reset_index(name='LEVEL_TOTAL_DS')
-    ou_level_counts=ou_tree_df['LEVEL'].value_counts().reset_index(name='LEVEL_TOTAL_DHIS2')
-    ds_level_counts=ds_level_counts.join(ou_level_counts,on='LEVEL')
-    ds_level_counts['LEVEL_PCT_ON_TOTAL']=(ds_level_counts['LEVEL_TOTAL_DS']*100/ds_level_counts['LEVEL_TOTAL_DHIS2']).round(2)
+    ds_level_counts=ds_info_df.groupby(group_dim)['LEVEL'].value_counts().reset_index(name='N_LEVEL_TOTAL_DS')
+    ou_level_counts=ou_tree_df['LEVEL'].value_counts().reset_index(name='N_LEVEL_TOTAL_DHIS2')
+    ds_level_counts=ds_level_counts.merge(ou_level_counts,on='LEVEL')
+    ds_level_counts['LEVEL_PCT_DS_OVER_TOTAL']=(ds_level_counts['N_LEVEL_TOTAL_DS']*100/ds_level_counts['N_LEVEL_TOTAL_DHIS2']).round(2)
     
     
     ds_info_df=ds_info_df.drop('LEVEL',axis=1).drop_duplicates().merge(ds_level_counts,on=['DE_UID','DS_UID'])
