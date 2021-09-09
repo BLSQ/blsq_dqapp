@@ -258,28 +258,64 @@ class Dhis2Client(object):
         return self.extract_data(dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor).rename(columns={'DE_UID':'DS_UID','COC_UID':'REPORTING_TYPE'})
         
     
-    def extract_data(self,dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor,coc_default_name="default",silent=False):
+    def extract_data(self,dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor,
+                     coc_default_name="default",silent=False,expand_coc=True,
+                     dx_batch_size=None,ou_batch_size=None):
+        
         path="analytics.json"
         if self.optional_prefix:
-            url_analytics = self.baseurl+self.optional_prefix+"/api/"+path
+            url_analytics_base = self.baseurl+self.optional_prefix+"/api/"+path
         else:
-            url_analytics = self.baseurl+"/api/"+path
-        url_analytics =url_analytics+'?dimension='+self._dx_composer_feed(dx_descriptor)
-        url_analytics =url_analytics+'&dimension='+self._ou_composer_feed(ou_descriptor)
-        url_analytics =url_analytics+'&dimension='+self._pe_composer_feed(pe_start_date,pe_end_date,frequency)
+            url_analytics_base = self.baseurl+"/api/"+path
             
-        resp_analytics = self.session.get(url_analytics)
-        if not silent:
-            print(resp_analytics.request.path_url)
-
-        analyticsData=resp_analytics.json()['rows']
+        if expand_coc and ('DX' in dx_descriptor.keys()):
+            de_specified_coc=[ de for de  in dx_descriptor['DX'] if '.' in de]
+            de_unspecified_coc=[de.split('.')[0] for de in dx_descriptor['DX'] if '.' not in de]
+            
+            de_structure_=self.fetch_data_elements_structure()
+            de_coc_table=de_structure_.query('DE_UID in @de_unspecified_coc')[['DE_UID','COC_UID']].drop_duplicates()
+            
+            indicators_list=[de for de in de_unspecified_coc if de not in de_coc_table.DE_UID.unique()]
+            
+            de_coc_table['IND_UID']=de_coc_table.DE_UID+'.'+de_coc_table.COC_UID
+            de_built_coc=de_coc_table.IND_UID.tolist()
+            
+            de_built_coc=de_built_coc+de_specified_coc+indicators_list
+            dx_descriptor['DX']=de_built_coc
+           
+        #add compatiblity with DEG and OUG
+        if 'DX' in dx_descriptor.keys():
+            dx_batchted_descriptors=self._batch_splitter(dx_batch_size,dx_descriptor['DX'],'DX')
+        if 'OU' in ou_descriptor.keys():
+            ou_batchted_descriptors=self._batch_splitter(ou_batch_size,ou_descriptor['OU'],'OU')
+            
+        analyticsData_df_list=[]
+            
+        for dx_batch_descriptor in dx_batchted_descriptors:
+            for ou_batch_descriptor in ou_batchted_descriptors:
+                url_analytics =url_analytics_base+'?dimension='+self._dx_composer_feed(dx_batch_descriptor)
+                url_analytics =url_analytics+'&dimension='+self._ou_composer_feed(ou_batch_descriptor)
+                url_analytics =url_analytics+'&dimension='+self._pe_composer_feed(pe_start_date,pe_end_date,frequency)
+                
+                print( "Batch processing")
+            
+                resp_analytics = self.session.get(url_analytics)
+                if not silent:
+                    print(resp_analytics.request.path_url)
         
-        if not analyticsData:
-            print( "No Data in DB")
-            pass 
-        else:
-            coc_default_uid=self.fetch_coc_structure().query('COC_NAME=="'+coc_default_name+'"').COC_UID.values[0]
-            analyticsData=self._analytics_json_to_df(analyticsData,coc_default_uid=coc_default_uid)
+                analyticsData_batch=resp_analytics.json()['rows']
+                
+                if not analyticsData_batch:
+                    print( "No Data in DB")
+                    pass 
+                else:
+                    coc_default_uid=self.fetch_coc_structure().query('COC_NAME=="'+coc_default_name+'"').COC_UID.values[0]
+                    analyticsData_df_list.append(
+                                                self._analytics_json_to_df(analyticsData_batch,coc_default_uid=coc_default_uid)
+                                                )
+                    
+            analyticsData=pd.concat(analyticsData_df_list,ignore_index=True)
+                    
             return analyticsData
             
         
@@ -299,8 +335,8 @@ class Dhis2Client(object):
         for de in de_list:
             print(f'{de} requested')
             if '.' in de:
-                coc=de_list.split('.')[1]
-                coc=de_list.split('.')[0]
+                coc=de.split('.')[1]
+                coc=de.split('.')[0]
             else:
                 coc=None
             for period in periods:
@@ -724,3 +760,15 @@ class Dhis2Client(object):
                                   "orgUnit":row['OU_UID'],
                                   "value": row[data_label]})
         return http_lists
+    
+    def _batch_splitter(self,batch_size,items_list,key_label):
+        if batch_size:
+            batchted_descriptors=[]
+            for i in range(0,len(items_list),de_batch_size):
+                j=i+de_batch_size
+                if j> len(items_list):
+                    j==len(items_list) 
+                batchted_descriptors.append( {key_label:items_list[i:j]} )
+        else:
+            batchted_descriptors=[{key_label:items_list}]
+        return batchted_descriptors
