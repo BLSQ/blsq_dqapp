@@ -301,6 +301,7 @@ class Dhis2Client(object):
                 url_analytics =url_analytics+'&dimension='+self._ou_composer_feed(ou_batch_descriptor)
                 url_analytics =url_analytics+'&dimension='+self._pe_composer_feed(pe_start_date,pe_end_date,frequency)
                 
+        
                 print(printedText)
             
                 resp_analytics = self.session.get(url_analytics)
@@ -759,7 +760,7 @@ class Dhis2Client(object):
 
         http_lists=[]
         for ind,row in global_df.iterrows():
-            dataValueList.append({"dataElement": row['DE_OUT_UID'],
+            http_lists.append({"dataElement": row['DE_OUT_UID'],
                                   "period":row['PERIOD'],
                                   "orgUnit":row['OU_UID'],
                                   "value": row[data_label]})
@@ -768,8 +769,8 @@ class Dhis2Client(object):
     def _batch_splitter(self,batch_size,items_list,key_label):
         if batch_size:
             batchted_descriptors=[]
-            for i in range(0,len(items_list),de_batch_size):
-                j=i+de_batch_size
+            for i in range(0,len(items_list),batch_size):
+                j=i+batch_size
                 if j> len(items_list):
                     j==len(items_list) 
                 batchted_descriptors.append( {key_label:items_list[i:j]} )
