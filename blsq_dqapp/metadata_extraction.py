@@ -310,7 +310,7 @@ class Dhis2Client(object):
         
         for url_query in total_queries:
         
-            print(printedText, f' : batch_index/{total_queries}')
+            print(printedText, f' : {batch_index}/{total_queries}')
             
             batch_index +=1
         
@@ -346,8 +346,12 @@ class Dhis2Client(object):
             url_db_base = self.baseurl+"/api/"+path
             
         DBData=[]
+        
+        de_list_len=len(de_list)
+        de_index=1
         for de in de_list:
-            print(f'{de} requested')
+            print(f'{de} requested {de_index}/{de_list_len}')
+            de_index +=1
             if '.' in de:
                 coc=de.split('.')[1]
                 coc=de.split('.')[0]
@@ -375,7 +379,7 @@ class Dhis2Client(object):
 
         
         if not DBData:
-            print( "No Data in DB")
+            print( "No Data in DB for previous DE batch")
             pass 
         else:
             return DBData
