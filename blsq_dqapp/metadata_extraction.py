@@ -248,14 +248,14 @@ class Dhis2Client(object):
             return gdf
 
         
-    def extract_reporting(self,datasets,pe_start_date,pe_end_date,frequency,ou_descriptor,report_types=['REPORTING_RATE']):
+    def extract_reporting(self,datasets,pe_start_date,pe_end_date,frequency,ou_descriptor,report_types=['REPORTING_RATE'],silent=False,dx_batch_size=None,ou_batch_size=None):
         dx_descriptor_list=[]
         for dataset in datasets:
             for report_type in report_types:
                 dx_descriptor_list.append(dataset+'.'+report_type)
         dx_descriptor={'DX':dx_descriptor_list}
         
-        return self.extract_data(dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor).rename(columns={'DE_UID':'DS_UID','COC_UID':'REPORTING_TYPE'})
+        return self.extract_data(dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor,silent=silent,dx_batch_size=dx_batch_size,ou_batch_size=ou_batch_size).rename(columns={'DE_UID':'DS_UID','COC_UID':'REPORTING_TYPE'})
         
     
     def extract_data(self,dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor,
@@ -290,14 +290,18 @@ class Dhis2Client(object):
             ou_batchted_descriptors=self._batch_splitter(ou_batch_size,ou_descriptor['OU'],'OU')
             
         analyticsData_df_list=[]
-            
+        if len(dx_batchted_descriptors)>1 or len(ou_batchted_descriptors)>1: 
+            printedText="Batch processing"
+        else:
+            printedText="Call processing"
+        
         for dx_batch_descriptor in dx_batchted_descriptors:
             for ou_batch_descriptor in ou_batchted_descriptors:
                 url_analytics =url_analytics_base+'?dimension='+self._dx_composer_feed(dx_batch_descriptor)
                 url_analytics =url_analytics+'&dimension='+self._ou_composer_feed(ou_batch_descriptor)
                 url_analytics =url_analytics+'&dimension='+self._pe_composer_feed(pe_start_date,pe_end_date,frequency)
                 
-                print( "Batch processing")
+                print(printedText)
             
                 resp_analytics = self.session.get(url_analytics)
                 if not silent:
