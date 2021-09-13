@@ -349,16 +349,25 @@ class Dhis2Client(object):
         
         de_list_len=len(de_list)
         de_index=1
+        
+        total_sub_len=len(periods)*len(ous)
+        
+        print('Start requests'}
+        
         for de in de_list:
-            print(f'{de} requested {de_index}/{de_list_len}')
-            de_index +=1
+            
             if '.' in de:
                 coc=de.split('.')[1]
                 coc=de.split('.')[0]
             else:
                 coc=None
+                
+            sub_index=1
             for period in periods:
                 for ou in ous:
+                    if sub_index % 200 == 0:
+                        print(f'{de} requested {de_index}/{de_list_len} of DE list -- {sub_index}/{total_sub_len}')
+                    sub_index +=1
 
                     
                     url_db =url_db_base+'?de='+de+'&pe='+period+'&ou='+ou
