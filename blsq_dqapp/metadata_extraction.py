@@ -295,6 +295,7 @@ class Dhis2Client(object):
         else:
             printedText="Call processing"
         
+        coc_default_uid=self.fetch_coc_structure().query('COC_NAME=="'+coc_default_name+'"').COC_UID.values[0]
         for dx_batch_descriptor in dx_batchted_descriptors:
             for ou_batch_descriptor in ou_batchted_descriptors:
                 url_analytics =url_analytics_base+'?dimension='+self._dx_composer_feed(dx_batch_descriptor)
@@ -314,7 +315,6 @@ class Dhis2Client(object):
                     print( "No Data in DB")
                     pass 
                 else:
-                    coc_default_uid=self.fetch_coc_structure().query('COC_NAME=="'+coc_default_name+'"').COC_UID.values[0]
                     analyticsData_df_list.append(
                                                 self._analytics_json_to_df(analyticsData_batch,coc_default_uid=coc_default_uid)
                                                 )
