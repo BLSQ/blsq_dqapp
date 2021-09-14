@@ -352,7 +352,7 @@ class Dhis2Client(object):
         
         total_sub_len=len(periods)*len(ous)
         
-        print('Start requests'}
+        print('Start requests')
         
         for de in de_list:
             
