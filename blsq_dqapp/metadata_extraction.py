@@ -308,7 +308,7 @@ class Dhis2Client(object):
         total_queries=len(url_queries_list)
         batch_index=1
         
-        for url_query in total_queries:
+        for url_query in url_queries_list:
         
             print(printedText, f' : {batch_index}/{total_queries}')
             
