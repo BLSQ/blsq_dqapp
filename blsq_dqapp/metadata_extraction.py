@@ -328,9 +328,9 @@ class Dhis2Client(object):
                                             self._analytics_json_to_df(analyticsData_batch,coc_default_uid=coc_default_uid)
                                             )
                     
-            analyticsData=pd.concat(analyticsData_df_list,ignore_index=True)
-                    
-            return analyticsData
+        analyticsData=pd.concat(analyticsData_df_list,ignore_index=True)
+                
+        return analyticsData
             
         
         
