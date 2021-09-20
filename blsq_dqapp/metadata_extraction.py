@@ -262,76 +262,65 @@ class Dhis2Client(object):
                      coc_default_name="default",silent=False,expand_coc=True,
                      dx_batch_size=None,ou_batch_size=None):
         
+        time_descriptor={'pe_start_date':pe_start_date,
+                         'pe_end_date':pe_end_date,
+                         'frequency':frequency}
+        
         path="analytics.json"
         if self.optional_prefix:
             url_analytics_base = self.baseurl+self.optional_prefix+"/api/"+path
         else:
             url_analytics_base = self.baseurl+"/api/"+path
             
-        if expand_coc and ('DX' in dx_descriptor.keys()):
-            de_specified_coc=[ de for de  in dx_descriptor['DX'] if '.' in de]
-            de_unspecified_coc=[de.split('.')[0] for de in dx_descriptor['DX'] if '.' not in de]
-            
-            de_structure_=self.fetch_data_elements_structure()
-            de_coc_table=de_structure_.query('DE_UID in @de_unspecified_coc')[['DE_UID','COC_UID']].drop_duplicates()
-            
-            indicators_list=[de for de in de_unspecified_coc if de not in de_coc_table.DE_UID.unique()]
-            
-            de_coc_table['IND_UID']=de_coc_table.DE_UID+'.'+de_coc_table.COC_UID
-            de_built_coc=de_coc_table.IND_UID.tolist()
-            
-            de_built_coc=de_built_coc+de_specified_coc+indicators_list
-            dx_descriptor['DX']=de_built_coc
-           
-        #add compatiblity with DEG and OUG
-        if 'DX' in dx_descriptor.keys():
-            dx_batchted_descriptors=self._batch_splitter(dx_batch_size,dx_descriptor['DX'],'DX')
-        if 'OU' in ou_descriptor.keys():
-            ou_batchted_descriptors=self._batch_splitter(ou_batch_size,ou_descriptor['OU'],'OU')
-            
-        analyticsData_df_list=[]
-        if len(dx_batchted_descriptors)>1 or len(ou_batchted_descriptors)>1: 
-            printedText="Batch processing"
-        else:
-            printedText="Call processing"
-        
         coc_default_uid=self.fetch_coc_structure().query('COC_NAME=="'+coc_default_name+'"').COC_UID.values[0]
-        
-        url_queries_list=[]
-        for dx_batch_descriptor in dx_batchted_descriptors:
-            for ou_batch_descriptor in ou_batchted_descriptors:
-                url_analytics =url_analytics_base+'?dimension='+self._dx_composer_feed(dx_batch_descriptor)
-                url_analytics =url_analytics+'&dimension='+self._ou_composer_feed(ou_batch_descriptor)
-                url_analytics =url_analytics+'&dimension='+self._pe_composer_feed(pe_start_date,pe_end_date,frequency)
-                url_queries_list.append(url_analytics)
-                
-        total_queries=len(url_queries_list)
-        batch_index=1
-        
-        for url_query in url_queries_list:
-        
-            print(printedText, f' : {batch_index}/{total_queries}')
             
-            batch_index +=1
-        
-            resp_analytics = self.session.get(url_query)
-            if not silent:
-                print(resp_analytics.request.path_url)
+        if expand_coc and ('DX' in dx_descriptor.keys()):
+            dx_descriptor['DX']=self._dx_coc_expander(dx_descriptor)
+            
+            
+        all_extractions_done=False
+        analyticsData_df_list_cycles=[]
+
+#        while not all_extractions_done:
     
-            analyticsData_batch=resp_analytics.json()['rows']
+        if not dx_batch_size:
+            dx_batch_size=self._max_len_descriptor_estimator(dx_descriptor)
+        if not ou_batch_size:
+            ou_batch_size=self._max_len_descriptor_estimator(ou_descriptor)
+        
+        while not all_extractions_done:
+        
+            dx_batchted_descriptors=self._batch_splitter(dx_batch_size,dx_descriptor)
+            ou_batchted_descriptors=self._batch_splitter(ou_batch_size,ou_descriptor)
+        
+            dx_uncalled_batchs,ou_uncalled_batchs,analyticsData_df_list_cycle=self._query_caller_manager(url_analytics_base,"analytics_extract",
+                                                                                                  dx_batchted_descriptors,ou_batchted_descriptors,
+                                                                                                  time_descriptor)
+            analyticsData_df_list_cycles.extend(analyticsData_df_list_cycle)
             
-            if not analyticsData_batch:
-                print( "No Data in DB")
-                pass 
+            if len(dx_uncalled_batchs)==0 and len(ou_uncalled_batchs)==0:
+                all_extractions_done=True        
             else:
-                analyticsData_df_list.append(
-                                            self._analytics_json_to_df(analyticsData_batch,coc_default_uid=coc_default_uid)
-                                            )
-                    
-        analyticsData=pd.concat(analyticsData_df_list,ignore_index=True)
+                dx_descriptor=self._batch_rebuilder(dx_uncalled_batchs)
+                ou_descriptor=self._batch_rebuilder(ou_uncalled_batchs)
                 
-        return analyticsData
+                if dx_batch_size>ou_batch_size:
+                    dx_batch_size=round(dx_batch_size/2,0)
+                else:
+                    ou_batch_size=round(ou_batch_size/2,0)
+        
+        
+        try:
+            analyticsData_df=pd.concat(analyticsData_df_list_cycles,ignore_index=True)
             
+        except ValueError:
+            
+            print("No data has been found for the whole range of metadata")
+            analyticsData=pd.DataFrame(columns=['OU_UID','PERIOD','DE_UID','COC_UID','VALUE'])
+        
+        return analyticsData
+                              
+                              
         
         
     def extract_data_db(self,dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor,coc_default_name="default",silent=False):
@@ -356,6 +345,8 @@ class Dhis2Client(object):
         
         for de in de_list:
             
+            print(f'{de} requested {de_index}/{de_list_len} of DE list')
+            
             if '.' in de:
                 coc=de.split('.')[1]
                 coc=de.split('.')[0]
@@ -365,8 +356,8 @@ class Dhis2Client(object):
             sub_index=1
             for period in periods:
                 for ou in ous:
-                    if sub_index % 200 == 0:
-                        print(f'{de} requested {de_index}/{de_list_len} of DE list -- {sub_index}/{total_sub_len}')
+                    if sub_index % 300 == 0:
+                        print(f'----- {de_index}/{de_list_len} DE -- {sub_index}/{total_sub_len}')
                     sub_index +=1
 
                     
@@ -385,7 +376,8 @@ class Dhis2Client(object):
                         DBData.append(value_dict)
                     except:
                         pass
-
+            
+            de_index +=1
         
         if not DBData:
             print( "No Data in DB for previous DE batch")
@@ -788,14 +780,122 @@ class Dhis2Client(object):
                                   "value": row[data_label]})
         return http_lists
     
-    def _batch_splitter(self,batch_size,items_list,key_label):
+    def _batch_splitter(self,batch_size,dimension_descriptor):#items_list,key_label):
         if batch_size:
             batchted_descriptors=[]
-            for i in range(0,len(items_list),batch_size):
-                j=i+batch_size
-                if j> len(items_list):
-                    j==len(items_list) 
-                batchted_descriptors.append( {key_label:items_list[i:j]} )
+            for key_label,items_list in dimension_descriptor:
+                for i in range(0,len(items_list),batch_size):
+                    j=i+batch_size
+                    if j> len(items_list):
+                        j==len(items_list) 
+                    batchted_descriptors.append( {key_label:items_list[i:j]} )
         else:
-            batchted_descriptors=[{key_label:items_list}]
+            for key_label,items_list in dimension_descriptor:
+                batchted_descriptors=[{key_label:items_list}]
         return batchted_descriptors
+    
+    def _batch_rebuilder(self,batch_list):
+        existing_keys=[]
+        full_build_batch={}
+        for batch in batch_list:
+            b_key=batch.keys()[0]]
+            if b_key not in existing_keys:
+                existing_keys.append(b_key)
+                full_build_batch[b_key]=batch[b_key]
+            else:
+                full_build_batch[b_key]=full_build_batch[b_key].extend(batch[b_key])
+        
+        for key,item in full_build_batch.items():
+            full_build_batch[key]=list(set(full_build_batch))
+        return full_build_batch
+    
+    def _max_len_descriptor_estimator(self,descriptor):
+        item_lens=[]
+        for key,item in descriptor.items():
+            item_lens.append(item)
+        return max(item_lens)
+    
+    
+    def _dx_coc_expander(self,dx_descriptor):
+        de_specified_coc=[ de for de  in dx_descriptor['DX'] if '.' in de]
+        de_unspecified_coc=[de.split('.')[0] for de in dx_descriptor['DX'] if '.' not in de]
+        
+        de_structure_=self.fetch_data_elements_structure()
+        de_coc_table=de_structure_.query('DE_UID in @de_unspecified_coc')[['DE_UID','COC_UID']].drop_duplicates()
+        
+        indicators_list=[de for de in de_unspecified_coc if de not in de_coc_table.DE_UID.unique()]
+        
+        de_coc_table['IND_UID']=de_coc_table.DE_UID+'.'+de_coc_table.COC_UID
+        de_built_coc=de_coc_table.IND_UID.tolist()
+        
+        de_built_coc=de_built_coc+de_specified_coc+indicators_list
+        return de_built_coc
+    
+    def _url_query_list_generator (self,url_analytics_base, formula_key,dx_batchted_descriptors,ou_batchted_descriptors,time_descriptor):
+        
+        def _formula_query_text_maker(url_analytics_base,formula_key,dx_batch_descriptor,ou_batch_descriptor,time_descriptor):
+            if formula_key=="analytics_extract":
+                url_analytics =url_analytics_base+'?dimension='+self._dx_composer_feed(dx_batch_descriptor)
+                url_analytics =url_analytics+'&dimension='+self._ou_composer_feed(ou_batch_descriptor)
+                url_analytics =url_analytics+'&dimension='+self._pe_composer_feed(time_descriptor['pe_start_date'],time_descriptor['pe_end_date'],time_descriptor['frequency'])
+            return url_analytics
+            
+        url_queries_list=[]
+        for dx_batch_descriptor in dx_batchted_descriptors:
+            for ou_batch_descriptor in ou_batchted_descriptors:
+                url_queries_list.append(_formula_query_text_maker(url_analytics_base,formula_key,dx_batch_descriptor,ou_batch_descriptor,time_descriptor))
+        return url_queries_list
+    
+    def _query_caller_manager(self,url_analytics_base,formula_key,
+                              dx_batchted_descriptors,ou_batchted_descriptors,
+                              time_descriptor):
+        analyticsData_df_list=[]
+        dx_uncalled_batchs=[]
+        ou_uncalled_batchs=[]
+        batch_index=1
+        total_queries=len(dx_batchted_descriptors)*len(ou_batchted_descriptors)
+                    
+        if len(dx_batchted_descriptors)>1 or len(ou_batchted_descriptors)>1: 
+            printedText="Batch processing"
+        else:
+            printedText="Call processing"
+        
+        
+        
+        for dx_batch_descriptor in dx_batchted_descriptors:
+            for ou_batch_descriptor in ou_batchted_descriptors:
+                
+                print(printedText, f' : {batch_index}/{total_queries}')
+                url_query=self._formula_query_text_maker(url_analytics_base,formula_key,
+                                                         dx_batch_descriptor,ou_batch_descriptor,time_descriptor)
+                batch_index +=1
+                if not silent:
+                    print(resp_analytics.request.path_url)
+                    
+                try:
+                    resp_analytics = self.session.get(url_query)
+                    analyticsData_batch=resp_analytics.json()['rows']
+                except (JSONDecodeError, KeyError) as err:
+                    #We save the failed calls to be recycle in new future calls with smaller batches 
+                    dx_uncalled_batchs.append(dx_batch_descriptor)
+                    ou_uncalled_batchs.append(ou_batch_descriptor)
+                else:
+                    if not analyticsData_batch:
+                        print( "No Data in DB")
+                        pass 
+                    else:
+                        analyticsData_df_list.append(
+                                                     self._analytics_json_to_df(analyticsData_batch,
+                                                                                coc_default_uid=coc_default_uid)
+                                                     )
+
+        return dx_uncalled_batchs,ou_uncalled_batchs,analyticsData_df_list
+
+                    
+    def _formula_query_text_maker(self,url_analytics_base,formula_key,dx_batch_descriptor,ou_batch_descriptor,time_descriptor):
+        if formula_key=="analytics_extract":
+            url_analytics =url_analytics_base+'?dimension='+self._dx_composer_feed(dx_batch_descriptor)
+            url_analytics =url_analytics+'&dimension='+self._ou_composer_feed(ou_batch_descriptor)
+            url_analytics =url_analytics+'&dimension='+self._pe_composer_feed(time_descriptor['pe_start_date'],time_descriptor['pe_end_date'],time_descriptor['frequency'])
+        return url_analytics
+        
