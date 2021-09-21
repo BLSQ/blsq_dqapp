@@ -308,7 +308,7 @@ class Dhis2Client(object):
                     dx_batch_size=round(dx_batch_size/2,0)
                 else:
                     ou_batch_size=round(ou_batch_size/2,0)
-        
+                print(f'New cycle dx_batch_size={dx_batch_size} ;ou_batch_size={ou_batch_size}')  
         
         try:
             analyticsData_df=pd.concat(analyticsData_df_list_cycles,ignore_index=True)    
@@ -316,7 +316,7 @@ class Dhis2Client(object):
             
             print("No data has been found for the whole range of metadata")
             analyticsData=pd.DataFrame(columns=['OU_UID','PERIOD','DE_UID','COC_UID','VALUE'])
-                      print('New ')      
+    
         return analyticsData_df
                               
                               
