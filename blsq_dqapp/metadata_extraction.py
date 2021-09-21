@@ -870,10 +870,10 @@ class Dhis2Client(object):
 
                 try:
                     resp_analytics = self.session.get(url_query)
-                if not silent:
-                    print(resp_analytics.request.path_url)
+                    if not silent:
+                        print(resp_analytics.request.path_url)
                     analyticsData_batch=resp_analytics.json()['rows']
-                except (JSONDecodeError, KeyError) as err:
+                except (ValueError, KeyError) as err:
                     #We save the failed calls to be recycle in new future calls with smaller batches 
                     dx_uncalled_batchs.append(dx_batch_descriptor)
                     ou_uncalled_batchs.append(ou_batch_descriptor)
