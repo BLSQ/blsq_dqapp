@@ -311,13 +311,12 @@ class Dhis2Client(object):
         
         
         try:
-            analyticsData_df=pd.concat(analyticsData_df_list_cycles,ignore_index=True)
-            
+            analyticsData_df=pd.concat(analyticsData_df_list_cycles,ignore_index=True)    
         except ValueError:
             
             print("No data has been found for the whole range of metadata")
             analyticsData=pd.DataFrame(columns=['OU_UID','PERIOD','DE_UID','COC_UID','VALUE'])
-        
+                      print('New ')      
         return analyticsData_df
                               
                               
@@ -812,7 +811,7 @@ class Dhis2Client(object):
     def _max_len_descriptor_estimator(self,descriptor):
         item_lens=[]
         for key,item in descriptor.items():
-            item_lens.append(item)
+            item_lens.append(len(item))
         return max(item_lens)
     
     
