@@ -300,6 +300,7 @@ class Dhis2Client(object):
             if len(dx_uncalled_batchs)==0 and len(ou_uncalled_batchs)==0:
                 all_extractions_done=True        
             else:
+                print("There are still unfinsihed calls. Resetting a new cycle of queries")
                 dx_descriptor=self._batch_rebuilder(dx_uncalled_batchs)
                 ou_descriptor=self._batch_rebuilder(ou_uncalled_batchs)
                 
@@ -796,7 +797,7 @@ class Dhis2Client(object):
         existing_keys=[]
         full_build_batch={}
         for batch in batch_list:
-            b_key=batch.keys()[0]
+            b_key=list(batch.keys())[0]
             if b_key not in existing_keys:
                 existing_keys.append(b_key)
                 full_build_batch[b_key]=batch[b_key]
