@@ -10,6 +10,8 @@ from datetime import datetime
 from.periods import Periods
 from .geometry import geometrify
 import geopandas
+import time
+import datetime
 
 
 class Dhis2Client(object):
@@ -280,8 +282,11 @@ class Dhis2Client(object):
             
         all_extractions_done=False
         analyticsData_df_list_cycles=[]
+        
+        print('-- Start requests--',datetime.datetime.now())
+        t_start=time.time()
 
-#        while not all_extractions_done:
+        while not all_extractions_done:
     
         if not dx_batch_size:
             dx_batch_size=self._max_len_descriptor_estimator(dx_descriptor)
@@ -315,16 +320,22 @@ class Dhis2Client(object):
         except ValueError:
             
             print("No data has been found for the whole range of metadata")
-            analyticsData=pd.DataFrame(columns=['OU_UID','PERIOD','DE_UID','COC_UID','VALUE'])
-    
+            analyticsData_df=pd.DataFrame(columns=['OU_UID','PERIOD','DE_UID','COC_UID','VALUE'])
+        
+        
+        print('-- End of requests--',datetime.datetime.now())
+        t_end=time.time()
+        print('Total time:',round((t_end-t_start)/60,2),'min')
         return analyticsData_df
                               
                               
         
         
-    def extract_data_db(self,dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor,coc_default_name="default",silent=False):
+    def extract_data_db(self,dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor,coc_default_name="default",silent=False,expand_coc=True):
         path="dataValues"
         periods=Periods.split([pe_start_date,pe_end_date],frequency)
+        if expand_coc and ('DX' in dx_descriptor.keys()):
+            dx_descriptor['DX']=self._dx_coc_expander(dx_descriptor)
         ous=ou_descriptor['OU']
         de_list=dx_descriptor['DX']
         
@@ -333,56 +344,29 @@ class Dhis2Client(object):
         else:
             url_db_base = self.baseurl+"/api/"+path
             
-        DBData=[]
-        
+        database_Data_df=[]
         de_list_len=len(de_list)
         de_index=1
-        
-        total_sub_len=len(periods)*len(ous)
-        
-        print('Start requests')
-        
+        print('-- Start requests--',datetime.datetime.now())
+        t_start=time.time()
         for de in de_list:
-            
             print(f'{de} requested {de_index}/{de_list_len} of DE list')
-            
-            if '.' in de:
-                coc=de.split('.')[1]
-                coc=de.split('.')[0]
-            else:
-                coc=None
-                
-            sub_index=1
-            for period in periods:
-                for ou in ous:
-                    if sub_index % 300 == 0:
-                        print(f'----- {de_index}/{de_list_len} DE -- {sub_index}/{total_sub_len}')
-                    sub_index +=1
-
-                    
-                    url_db =url_db_base+'?de='+de+'&pe='+period+'&ou='+ou
-                    if coc:
-                        url_db=url_db+'&co='+coc
-                        
-                    resp_db = self.session.get(url_db)
-                    
-                    if not silent:
-                        print(resp_db.request.path_url)
-                    try:
-                        value_dict={'DE_UID':de,'PERIOD':period,'OU_UID':ou,'VALUE':resp_db.json()[0]}
-                        if coc: 
-                            value_dict.update({'COC_UID':[coc]})
-                        DBData.append(value_dict)
-                    except:
-                        pass
-            
+            de_start=time.time()
+            database_Data_df.append(self._db_extract_de_query_subcomposer(url_db_base,de,periods,ous,silent=silent))
+            de_end=time.time()
             de_index +=1
-        
-        if not DBData:
-            print( "No Data in DB for previous DE batch")
-            pass 
+            print('Batch query took:',round((de_end-de_start)/60,2),'min')
+            
+        if not database_Data_df:
+            print("No Data in DB for any combination")
+            database_Data_df=pd.DataFrame(columns=['DE_UID','PERIOD','OU_UID','VALUE','COC_UID'])
         else:
-            return DBData
+            database_Data_df=pd.concat(database_Data_df,ignore_index=True)
+            
+        print('-- End of requests--',datetime.datetime.now())
+        t_end=time.time()
+        print('Total time:',round((t_end-t_start)/60,2),'min')
+        return database_Data_df
             
     def post_data_aggregate(self,df,endpoint="dataValues",data_label='VALUE',postDataset=True):
         
@@ -896,3 +880,43 @@ class Dhis2Client(object):
             url_analytics =url_analytics+'&dimension='+self._pe_composer_feed(time_descriptor['pe_start_date'],time_descriptor['pe_end_date'],time_descriptor['frequency'])
         return url_analytics
         
+    def _db_extract_de_query_subcomposer(self,url_db_base,de,periods,ous,silent=True):
+        database_decycle_Data=[]
+        total_sub_len=len(periods)*len(ous)
+        if '.' in de:
+            coc=de.split('.')[1]
+        else:
+            coc=None
+        sub_index=1
+        for period in periods:
+            for ou in ous:
+                if sub_index % 500 == 0:
+                    print(f'------- {sub_index}/{total_sub_len}')
+                sub_index +=1
+                url_db =url_db_base+'?de='+de+'&pe='+period+'&ou='+ou
+                if coc:
+                    url_db=url_db+'&co='+coc
+                
+                resp_db = self.session.get(url_db)
+                
+                if not silent:
+                    print(resp_db.request.path_url)
+                try:
+                    value_dict={'DE_UID':[de],
+                                'PERIOD':[period],
+                                'OU_UID':[ou],
+                                'VALUE':[resp_db.json()[0]]}
+                    if coc: 
+                        value_dict.update({'COC_UID':[coc]})
+                    database_decycle_Data.append(value_dict)
+                except:
+                    pass
+        if not database_decycle_Data:
+            print(f"No data has been found for the whole range of metadata in this batch for {de}")
+            database_decycle_Data_df=pd.DataFrame(columns=['DE_UID','PERIOD','OU_UID','VALUE','COC_UID'])
+        else:
+            database_decycle_Data_df=[]
+            for batch in database_decycle_Data:
+                database_decycle_Data_df.append(pd.DataFrame(batch))
+            database_decycle_Data_df=pd.concat(database_decycle_Data_df,ignore_index=True)
+        return database_decycle_Data_df
