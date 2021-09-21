@@ -289,7 +289,6 @@ class Dhis2Client(object):
             ou_batch_size=self._max_len_descriptor_estimator(ou_descriptor)
         
         while not all_extractions_done:
-        
             dx_batchted_descriptors=self._batch_splitter(dx_batch_size,dx_descriptor)
             ou_batchted_descriptors=self._batch_splitter(ou_batch_size,ou_descriptor)
         
@@ -782,14 +781,14 @@ class Dhis2Client(object):
     def _batch_splitter(self,batch_size,dimension_descriptor):#items_list,key_label):
         if batch_size:
             batchted_descriptors=[]
-            for key_label,items_list in dimension_descriptor:
+            for key_label,items_list in dimension_descriptor.items():
                 for i in range(0,len(items_list),batch_size):
                     j=i+batch_size
                     if j> len(items_list):
                         j==len(items_list) 
                     batchted_descriptors.append( {key_label:items_list[i:j]} )
         else:
-            for key_label,items_list in dimension_descriptor:
+            for key_label,items_list in dimension_descriptor.items():
                 batchted_descriptors=[{key_label:items_list}]
         return batchted_descriptors
     
