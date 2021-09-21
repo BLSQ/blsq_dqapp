@@ -295,7 +295,7 @@ class Dhis2Client(object):
         
             dx_uncalled_batchs,ou_uncalled_batchs,analyticsData_df_list_cycle=self._query_caller_manager(url_analytics_base,"analytics_extract",
                                                                                                   dx_batchted_descriptors,ou_batchted_descriptors,
-                                                                                                  time_descriptor)
+                                                                                                  time_descriptor,coc_default_uid,silent=silent)
             analyticsData_df_list_cycles.extend(analyticsData_df_list_cycle)
             
             if len(dx_uncalled_batchs)==0 and len(ou_uncalled_batchs)==0:
@@ -318,7 +318,7 @@ class Dhis2Client(object):
             print("No data has been found for the whole range of metadata")
             analyticsData=pd.DataFrame(columns=['OU_UID','PERIOD','DE_UID','COC_UID','VALUE'])
         
-        return analyticsData
+        return analyticsData_df
                               
                               
         
@@ -798,7 +798,7 @@ class Dhis2Client(object):
         existing_keys=[]
         full_build_batch={}
         for batch in batch_list:
-            b_key=batch.keys()[0]]
+            b_key=batch.keys()[0]
             if b_key not in existing_keys:
                 existing_keys.append(b_key)
                 full_build_batch[b_key]=batch[b_key]
@@ -848,7 +848,7 @@ class Dhis2Client(object):
     
     def _query_caller_manager(self,url_analytics_base,formula_key,
                               dx_batchted_descriptors,ou_batchted_descriptors,
-                              time_descriptor):
+                              time_descriptor,coc_default_uid,silent=False):
         analyticsData_df_list=[]
         dx_uncalled_batchs=[]
         ou_uncalled_batchs=[]
@@ -860,8 +860,6 @@ class Dhis2Client(object):
         else:
             printedText="Call processing"
         
-        
-        
         for dx_batch_descriptor in dx_batchted_descriptors:
             for ou_batch_descriptor in ou_batchted_descriptors:
                 
@@ -869,11 +867,11 @@ class Dhis2Client(object):
                 url_query=self._formula_query_text_maker(url_analytics_base,formula_key,
                                                          dx_batch_descriptor,ou_batch_descriptor,time_descriptor)
                 batch_index +=1
-                if not silent:
-                    print(resp_analytics.request.path_url)
-                    
+
                 try:
                     resp_analytics = self.session.get(url_query)
+                if not silent:
+                    print(resp_analytics.request.path_url)
                     analyticsData_batch=resp_analytics.json()['rows']
                 except (JSONDecodeError, KeyError) as err:
                     #We save the failed calls to be recycle in new future calls with smaller batches 
