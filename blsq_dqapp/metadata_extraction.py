@@ -286,8 +286,7 @@ class Dhis2Client(object):
         print('-- Start requests--',datetime.datetime.now())
         t_start=time.time()
 
-        while not all_extractions_done:
-    
+
         if not dx_batch_size:
             dx_batch_size=self._max_len_descriptor_estimator(dx_descriptor)
         if not ou_batch_size:
@@ -321,7 +320,6 @@ class Dhis2Client(object):
             
             print("No data has been found for the whole range of metadata")
             analyticsData_df=pd.DataFrame(columns=['OU_UID','PERIOD','DE_UID','COC_UID','VALUE'])
-        
         
         print('-- End of requests--',datetime.datetime.now())
         t_end=time.time()
