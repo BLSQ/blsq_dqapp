@@ -337,10 +337,17 @@ class Dhis2Client(object):
                 print(f'New cycle dx_batch_size={dx_batch_size} ;ou_batch_size={ou_batch_size}')  
                 
         try:
-            analyticsData_df=pd.concat(analyticsData_df_list_cycles,ignore_index=True)    
+            analyticsData_df=pd.concat(analyticsData_df_list_cycles,ignore_index=True)
+            if not all_extractions_done:
+                print("Unresolved calls")
+                print(dx_descriptor,ou_descriptor)
         except ValueError:
-            
-            print("No data has been found for the whole range of metadata")
+            if all_extractions_done:
+                print("No data has been found for the whole range of metadata")
+            else:
+                print("Unresolved calls")
+                print(dx_descriptor,ou_descriptor)
+                
             analyticsData_df=pd.DataFrame(columns=['OU_UID','PERIOD','DE_UID','COC_UID','VALUE'])
         
         print('-- End of requests--',datetime.datetime.now())
