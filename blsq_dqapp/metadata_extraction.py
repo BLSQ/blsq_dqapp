@@ -331,8 +331,11 @@ class Dhis2Client(object):
                     dx_batch_size=int(round(dx_batch_size/2,0))
                 else:
                     ou_batch_size=int(round(ou_batch_size/2,0))
+                    
+                if dx_batch_size==0 or ou_batch_size==0:
+                    break
                 print(f'New cycle dx_batch_size={dx_batch_size} ;ou_batch_size={ou_batch_size}')  
-        
+                
         try:
             analyticsData_df=pd.concat(analyticsData_df_list_cycles,ignore_index=True)    
         except ValueError:
