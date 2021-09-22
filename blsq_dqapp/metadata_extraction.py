@@ -892,6 +892,7 @@ class Dhis2Client(object):
         total_sub_len=len(periods)*len(ous)
         if '.' in de:
             coc=de.split('.')[1]
+            de=de.split('.')[0]
         else:
             coc=None
         sub_index=1
