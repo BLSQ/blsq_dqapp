@@ -45,6 +45,17 @@ class ExtractPeriod:
     def next_date(self, current_date):
         pass
 
+class ExtractWeeklyPeriod(ExtractPeriod):
+    def next_date(self, date):
+        return date + relativedelta(days=7)
+
+    def dhis2_format(self, date):
+        year=date.isocalendar()[0]
+        week=date.isocalendar()[1]
+        return date.strftime(f"{year}W{week}")
+
+    def first_date(self, date_range):
+        return date_range.start
 
 class ExtractMonthlyPeriod(ExtractPeriod):
     def next_date(self, date):
@@ -101,6 +112,7 @@ class ExtractFinancialJulyPeriod(ExtractPeriod):
 
 
 CLASSES_MAPPING = {
+    "weekly": ExtractWeeklyPeriod,
     "monthly": ExtractMonthlyPeriod,
     "quarterly": ExtractQuarterlyPeriod,
     "yearly": ExtractYearlyPeriod,
@@ -148,6 +160,19 @@ class YearMonthParser:
         end_date = start_date + relativedelta(day=31)
 
         return DateRange(start_date, end_date)
+    
+class YearWeekParser:
+    @staticmethod
+    def parse(period):
+        if "W" not in period:
+            return
+        components = period.split("W")
+        week = int(components[1])
+        year = int(components[0])
+        start_date = date.fromisocalendar(year=year,week=week, day=1)
+        end_date = date.fromisocalendar(year=year,week=week, day=7)
+
+        return DateRange(start_date, end_date)
 
 
 class FinancialJulyParser:
@@ -164,7 +189,7 @@ class FinancialJulyParser:
         return DateRange(start_date, end_date)
     
 
-PARSERS = [YearParser, YearQuarterParser,
+PARSERS = [YearParser, YearQuarterParser,YearWeekParser,
            YearMonthParser, FinancialJulyParser]
 
 CACHE = {}
