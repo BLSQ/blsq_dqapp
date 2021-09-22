@@ -77,7 +77,7 @@ class Dhis2Client(object):
                                                 "fields":
                                                          "id,name,categoryCombo"+
                                                          ",domainType"+
-                                                         ",dataSetElements[dataSet]"
+                                                         ",dataSetElements[dataSet,categoryCombo]"
                                                 })['dataElements']
         
         dataElementsStructure=self._data_elements_json_to_df(dataElementsStructure)
@@ -285,8 +285,6 @@ class Dhis2Client(object):
         
         print('-- Start requests--',datetime.datetime.now())
         t_start=time.time()
-
-
         if not dx_batch_size:
             dx_batch_size=self._max_len_descriptor_estimator(dx_descriptor)
         if not ou_batch_size:
@@ -330,7 +328,7 @@ class Dhis2Client(object):
         
         
     def extract_data_db(self,dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor,coc_default_name="default",silent=False,expand_coc=True):
-        path="dataValues"
+        path="dataValues.json"
         periods=Periods.split([pe_start_date,pe_end_date],frequency)
         if expand_coc and ('DX' in dx_descriptor.keys()):
             dx_descriptor['DX']=self._dx_coc_expander(dx_descriptor)
@@ -433,7 +431,7 @@ class Dhis2Client(object):
     def _data_elements_json_to_df(self,df):
         df_list=[]
         for de in df:
-            cc=[None]
+            cc_default=[None]
             de_name=[None]
             domain=[None]
             de_uid=[de['id']]
@@ -443,13 +441,24 @@ class Dhis2Client(object):
                 de_name=[de['name']]
             if 'categoryCombo' in de.keys():
                 if de['categoryCombo']:
-                    cc=[de['categoryCombo']['id']]
+                    cc_default=[de['categoryCombo']['id']]
             if 'dataSetElements' in de.keys():
                 if de['dataSetElements']:
                     for ds_de in de['dataSetElements']:
-                        df_list.append(pd.DataFrame({'DE_UID':de_uid,'DE_NAME':de_name,'CC_UID':cc,'DS_UID':[ds_de['dataSet']['id']],'DOMAIN':domain}))
+                        if 'categoryCombo' in ds_de.keys():
+                            df_list.append(pd.DataFrame({'DE_UID':de_uid,
+                                                         'DE_NAME':de_name,
+                                                         'CC_UID':[ds_de['categoryCombo']['id']],
+                                                         'DS_UID':[ds_de['dataSet']['id']],
+                                                         'DOMAIN':domain}))
+                        else:
+                            df_list.append(pd.DataFrame({'DE_UID':de_uid,
+                                                         'DE_NAME':de_name,
+                                                         'CC_UID':cc_default,
+                                                         'DS_UID':[ds_de['dataSet']['id']],
+                                                         'DOMAIN':domain}))
             else:
-                df_list.append(pd.DataFrame({'DE_UID':de_uid,'DE_NAME':de_name,'CC_UID':cc,'DS_UID':[None]}))
+                df_list.append(pd.DataFrame({'DE_UID':de_uid,'DE_NAME':de_name,'CC_UID':cc_default,'DS_UID':[None]}))
         return pd.concat(df_list,ignore_index=True)
     
     def _num_den_text_processator(self,text,coc_default_uid):
