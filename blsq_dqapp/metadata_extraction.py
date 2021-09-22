@@ -328,9 +328,9 @@ class Dhis2Client(object):
                 ou_descriptor=self._batch_rebuilder(ou_uncalled_batchs)
                 
                 if dx_batch_size>ou_batch_size:
-                    dx_batch_size=round(dx_batch_size/2,0)
+                    dx_batch_size=int(round(dx_batch_size/2,0))
                 else:
-                    ou_batch_size=round(ou_batch_size/2,0)
+                    ou_batch_size=int(round(ou_batch_size/2,0))
                 print(f'New cycle dx_batch_size={dx_batch_size} ;ou_batch_size={ou_batch_size}')  
         
         try:
