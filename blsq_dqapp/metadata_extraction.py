@@ -115,14 +115,35 @@ class Dhis2Client(object):
         return dataSetsStructure
     
     def fetch_coc_structure(self):
-        categoryOptionCombosStructure = self.get("categoryOptionCombos.json", 
-                                                     params={
-                                                            "paging":False,                                                          
-                                                            "fields":
-                                                                     "id,name,categoryCombo"
-                                                            })['categoryOptionCombos']
+        categoryOptionCombosStructure = self.get("categoryOptionCombos.json",
+                                                 silent=True,
+                                                 params={
+                                                         "paging":False,                                                          
+                                                         "fields":
+                                                                 "id,name,categoryCombo"
+                                                         })['categoryOptionCombos']
         
         categoryOptionCombosStructure=self._cocs_json_to_df(categoryOptionCombosStructure)
+        
+        #Adding current use categories information 
+        categoryCombos_UIDS=categoryOptionCombosStructure.CC_UID.unique().tolist()
+        coc_queries_df_list=[]
+        for coc_unit_uid in categoryCombos_UIDS:
+            categoryComboStructure_UID_unit = self.get(f"categoryCombos/{coc_unit_uid}.json",
+                                                 silent=True,
+                                                 params={                                                        
+                                                         "fields":
+                                                                 "id,categoryOptionCombos"
+                                                         })
+            coc_queries_df_list.append(self._cc_uid_json_to_df(categoryComboStructure_UID_unit))
+            
+        categoryOptionCombosStructure_Current=pd.concat(coc_queries_df_list,
+                                                        ignore_index=True).assign(CURRENT_USE=True)
+        categoryOptionCombosStructure=categoryOptionCombosStructure.merge(categoryOptionCombosStructure_Current,
+                                                                            on=['CC_UID','COC_UID'],
+                                                                            how='left')
+        categoryOptionCombosStructure['CURRENT_USE']=categoryOptionCombosStructure['CURRENT_USE'].fillna(False)
+        
         return categoryOptionCombosStructure
     
     def fetch_deg_structure(self):
@@ -150,7 +171,7 @@ class Dhis2Client(object):
         return indicatorGroupsStructure
     
     def fetch_oug_structure(self):
-        organisationUnitGroupsStructure = self.get("organisationUnitGroups.json", 
+        organisationUnitGroupsStructure = self.get("organisationUnitGroups.json",
                                                      params={
                                                             "paging":False,                                                          
                                                             "fields":
@@ -544,6 +565,23 @@ class Dhis2Client(object):
 
 
         return pd.concat(coc_df_list,ignore_index=True)
+    
+    def _cc_uid_json_to_df(self,cc_json):
+        cc_coc_df_list=[]
+        cc_uid=[None]
+        coc_uid=[None]
+        if 'id' in cc_json.keys():
+            cc_uid=[cc_json['id']]
+        if 'categoryOptionCombos' in cc_json.keys():
+            for coc_option in cc_json['categoryOptionCombos']:
+                coc_uid=[coc_option['id']]
+                cc_coc_df_list.append(pd.DataFrame({'COC_UID':coc_uid,'CC_UID':cc_uid}))
+            
+        else:
+            cc_coc_df_list.append(pd.DataFrame({'COC_UID':coc_uid,'CC_UID':cc_uid}))
+            
+        return pd.concat(cc_coc_df_list,ignore_index=True)
+    
     
     def _deg_json_to_df(self,df):
         deg_df_list=[]
