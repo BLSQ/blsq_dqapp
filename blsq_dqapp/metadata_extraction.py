@@ -837,11 +837,15 @@ class Dhis2Client(object):
         full_build_batch={}
         for batch in batch_list:
             b_key=list(batch.keys())[0]
-            if b_key not in existing_keys:
+            
+            if b_key in existing_keys:
+                current_list=full_build_batch[b_key]
+                new_list=batch[b_key]
+                current_list.extend(new_list)
+                full_build_batch[b_key]=current_list
+            else:
                 existing_keys.append(b_key)
                 full_build_batch[b_key]=batch[b_key]
-            else:
-                full_build_batch[b_key]=full_build_batch[b_key].extend(batch[b_key])
         
         for key,item in full_build_batch.items():
             full_build_batch[key]=list(set(full_build_batch))
