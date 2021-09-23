@@ -848,7 +848,7 @@ class Dhis2Client(object):
                 full_build_batch[b_key]=batch[b_key]
         
         for key,item in full_build_batch.items():
-            full_build_batch[key]=list(set(full_build_batch))
+            full_build_batch[key]=list(set(item))
         return full_build_batch
     
     def _max_len_descriptor_estimator(self,descriptor):
