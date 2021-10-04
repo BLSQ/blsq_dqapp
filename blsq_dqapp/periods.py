@@ -109,6 +109,24 @@ class ExtractFinancialJulyPeriod(ExtractPeriod):
             final_date = anniv_date
 
         return final_date
+    
+class ExtractFinancialOctoberPeriod(ExtractPeriod):
+    def next_date(self, date):
+        return date.replace(year=date.year + 1)
+
+    def dhis2_format(self, date):
+        return date.strftime("%YOct")
+
+    def first_date(self, date_range):
+        anniv_date = date_range.start.replace(month=1, day=1) + \
+            relativedelta(months=10)
+        final_date = None
+        if date_range.start < anniv_date:
+            final_date = anniv_date - relativedelta(years=1)
+        else:
+            final_date = anniv_date
+
+        return final_date
 
 
 CLASSES_MAPPING = {
@@ -116,7 +134,8 @@ CLASSES_MAPPING = {
     "monthly": ExtractMonthlyPeriod,
     "quarterly": ExtractQuarterlyPeriod,
     "yearly": ExtractYearlyPeriod,
-    "financial_july": ExtractFinancialJulyPeriod
+    "financial_july": ExtractFinancialJulyPeriod,
+    "financial_october": ExtractFinancialOctoberPeriod
 }
 
 
@@ -178,7 +197,7 @@ class YearWeekParser:
 class FinancialJulyParser:
     @staticmethod
     def parse(period):
-        if len(period) != 8:
+        if "July" not in period :
             return
         year = int(period[0:4])
         month = 7
@@ -188,9 +207,22 @@ class FinancialJulyParser:
 
         return DateRange(start_date, end_date)
     
+class FinancialOctoberParser:
+    @staticmethod
+    def parse(period):
+        if "Oct" not in period :
+            return
+        year = int(period[0:4])
+        month = 10
+        start_date = date(year=year, month=month, day=1)
+        end_date = last_day_of_month(start_date - relativedelta(days=1)) + \
+            relativedelta(years=1)
+
+        return DateRange(start_date, end_date)
+    
 
 PARSERS = [YearParser, YearQuarterParser,YearWeekParser,
-           YearMonthParser, FinancialJulyParser]
+           YearMonthParser, FinancialJulyParser,FinancialOctoberParser]
 
 CACHE = {}
 
