@@ -285,6 +285,8 @@ class Dhis2Client(object):
                      coc_default_name="default",silent=False,expand_coc=True,
                      dx_batch_size=None,ou_batch_size=None):
         
+        #TODO Filter on valid data type elements
+        #Take DE and filter them 
         time_descriptor={'pe_start_date':pe_start_date,
                          'pe_end_date':pe_end_date,
                          'frequency':frequency}
@@ -296,6 +298,8 @@ class Dhis2Client(object):
             url_analytics_base = self.baseurl+"/api/"+path
             
         coc_default_uid=self.fetch_coc_structure().query('COC_NAME=="'+coc_default_name+'"').COC_UID.values[0]
+        
+        ##TODO Filter on valid data for analytics, automate the frequency to query, autoamte teh ou to query given a tree 
             
         if expand_coc and ('DX' in dx_descriptor.keys()):
             dx_descriptor['DX']=self._dx_coc_expander(dx_descriptor)
@@ -324,6 +328,8 @@ class Dhis2Client(object):
                 all_extractions_done=True        
             else:
                 print("There are still unfinsihed calls. Resetting a new cycle of queries")
+                
+                #print(dx_uncalled_batchs)
                 dx_descriptor=self._batch_rebuilder(dx_uncalled_batchs)
                 ou_descriptor=self._batch_rebuilder(ou_uncalled_batchs)
                 
@@ -361,6 +367,10 @@ class Dhis2Client(object):
     def extract_data_db(self,dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor,coc_default_name="default",silent=False,expand_coc=True):
         path="dataValues.json"
         periods=Periods.split([pe_start_date,pe_end_date],frequency)
+        
+        #TODO Filter on valid data type elements
+        #Take DE and filter them 
+        
         if expand_coc and ('DX' in dx_descriptor.keys()):
             dx_descriptor['DX']=self._dx_coc_expander(dx_descriptor)
         ous=ou_descriptor['OU']
@@ -839,13 +849,13 @@ class Dhis2Client(object):
             b_key=list(batch.keys())[0]
             
             if b_key in existing_keys:
-                current_list=full_build_batch[b_key]
-                new_list=batch[b_key]
+                current_list=list(full_build_batch[b_key])
+                new_list=list(batch[b_key])
                 current_list.extend(new_list)
                 full_build_batch[b_key]=current_list
             else:
                 existing_keys.append(b_key)
-                full_build_batch[b_key]=batch[b_key]
+                full_build_batch[b_key]=list(batch[b_key])
         
         for key,item in full_build_batch.items():
             full_build_batch[key]=list(set(item))
@@ -896,6 +906,16 @@ class Dhis2Client(object):
         ou_uncalled_batchs=[]
         batch_index=1
         total_queries=len(dx_batchted_descriptors)*len(ou_batchted_descriptors)
+        
+        if total_queries<=30:
+            printing_batching_denominator=1
+        elif total_queries<=200:
+            printing_batching_denominator=10
+        elif total_queries<=1000:
+            printing_batching_denominator=25
+        else:
+            printing_batching_denominator=50
+            
                     
         if len(dx_batchted_descriptors)>1 or len(ou_batchted_descriptors)>1: 
             printedText="Batch processing"
@@ -905,7 +925,9 @@ class Dhis2Client(object):
         for dx_batch_descriptor in dx_batchted_descriptors:
             for ou_batch_descriptor in ou_batchted_descriptors:
                 
-                print(printedText, f' : {batch_index}/{total_queries}')
+                if batch_index % printing_batching_denominator == 0:
+                    print(printedText, f' : {batch_index}/{total_queries}')
+                
                 url_query=self._formula_query_text_maker(url_analytics_base,formula_key,
                                                          dx_batch_descriptor,ou_batch_descriptor,time_descriptor)
                 batch_index +=1
@@ -915,13 +937,14 @@ class Dhis2Client(object):
                     if not silent:
                         print(resp_analytics.request.path_url)
                     analyticsData_batch=resp_analytics.json()['rows']
-                except (ValueError, KeyError) as err:
+                except (ValueError, KeyError):
+                    
                     #We save the failed calls to be recycle in new future calls with smaller batches 
                     dx_uncalled_batchs.append(dx_batch_descriptor)
                     ou_uncalled_batchs.append(ou_batch_descriptor)
                 else:
                     if not analyticsData_batch:
-                        print( "No Data in DB")
+                        print( "No Data in DB for:",dx_batch_descriptor,ou_batch_descriptor)
                         pass 
                     else:
                         analyticsData_df_list.append(
@@ -980,3 +1003,15 @@ class Dhis2Client(object):
                 database_decycle_Data_df.append(pd.DataFrame(batch))
             database_decycle_Data_df=pd.concat(database_decycle_Data_df,ignore_index=True)
         return database_decycle_Data_df
+    
+    def _http_extract_error_handler(self,error_code,query_answer):
+        #TODO FINISH it prorperly
+        try:
+            analyticsData_batch_answer=query_answer.json()
+            error_code=analyticsData_batch_answer['errorCode']
+            if error_code=="E7115":
+#                "message":"Data elements must be of a value and aggregation type that allow aggregation: `[SqmMlZdvCZJ, OxAb92h9i3r, cQiW8TWZQWC]`"
+                text=analyticsData_batch_answer["message"]
+        except:
+            pass
+        return 
