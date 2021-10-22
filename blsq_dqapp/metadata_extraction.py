@@ -1095,7 +1095,7 @@ class Dhis2Client(object):
     
         return events["events"]
 
-    def _program_description_json_to_df(json):
+    def _program_description_json_to_df(self,json):
         for program in json:
             prog_id=[program['id']]
             if 'name' in program:
