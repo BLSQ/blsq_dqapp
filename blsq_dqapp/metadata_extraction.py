@@ -1155,22 +1155,22 @@ class Dhis2Client(object):
                                         'OPTION_CODE':[None]}
                             program_df_program_stage_list.append(pd.DataFrame({**de_dict,**option_dict}))
                             
-            if program_df_attributes_list:
-                program_df_attributes=pd.concat(program_df_attributes_list,
-                                                ignore_index=True)
-            else:
-                program_df_attributes=pd.DataFrame(columns=['PROGRAM_T_UID','PROGRAM_T_NAME','PROGRAM_T_ETI_DATA_UID',
-                                                              'PROGRAM_T_ETI_DATA_NAME','ETI_ATT_UID','ETI_ATT_NAME',
-                                                              'ETI_ATT_VALUE_TYPE'])
-            if program_df_program_stage_list:
-                program_df_program_stage=pd.concat(program_df_program_stage_list,
-                                                ignore_index=True)
-            else:
-                program_df_program_stage=pd.DataFrame(columns=['PROGRAM_T_UID','PROGRAM_T_NAME','PROGRAM_T_STAGE_UID',
-                                                               'PROGRAM_T_STAGE_NAME','DE_UID','DE_NAME','DE_CODE',
-                                                               'DE_VALUE_TYPE'])
-            return {"programTracker_programTrackedEntityAttributes":program_df_attributes,
-                    "programTracker_programStagesDataElements":program_df_program_stage}
+        if program_df_attributes_list:
+            program_df_attributes=pd.concat(program_df_attributes_list,
+                                            ignore_index=True)
+        else:
+            program_df_attributes=pd.DataFrame(columns=['PROGRAM_T_UID','PROGRAM_T_NAME','PROGRAM_T_ETI_DATA_UID',
+                                                          'PROGRAM_T_ETI_DATA_NAME','ETI_ATT_UID','ETI_ATT_NAME',
+                                                          'ETI_ATT_VALUE_TYPE'])
+        if program_df_program_stage_list:
+            program_df_program_stage=pd.concat(program_df_program_stage_list,
+                                            ignore_index=True)
+        else:
+            program_df_program_stage=pd.DataFrame(columns=['PROGRAM_T_UID','PROGRAM_T_NAME','PROGRAM_T_STAGE_UID',
+                                                           'PROGRAM_T_STAGE_NAME','DE_UID','DE_NAME','DE_CODE',
+                                                           'DE_VALUE_TYPE'])
+        return {"programTracker_programTrackedEntityAttributes":program_df_attributes,
+                "programTracker_programStagesDataElements":program_df_program_stage}
     
     
     def _program_event_data_json_to_df(self,json):
