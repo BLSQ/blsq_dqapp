@@ -1183,25 +1183,29 @@ class Dhis2Client(object):
     
     
     def _program_event_data_json_to_df(self,json):
+        
         empty_de_dict={'DE_UID':[None],'VALUE':[None]}
-        program_df_data_event_df_list=[]
         event_dict_labels={
-            'PROGRAM_T_UID':'program',
-            'PROGRAM_T_STAGE_UID':'programStage',
-            'PROGRAM_TYPE':'programType',
-            'STATUS':'status',
-            'OU_UID':'orgUnit',
-            'DATE_REGISTER':'eventDate',
-            'STORED_BY':'completedBy',
-            'EVENT_UID':'event'
-            }
+                            'PROGRAM_T_UID':'program',
+                            'PROGRAM_T_STAGE_UID':'programStage',
+                            'PROGRAM_TYPE':'programType',
+                            'STATUS':'status',
+                            'OU_UID':'orgUnit',
+                            'DATE_REGISTER':'eventDate',
+                            'STORED_BY':'completedBy',
+                            'EVENT_UID':'event'
+                            }
+        
+        program_df_data_event_df_list=[]
         for event in json:
+            event_dict={}
             for key,item in event_dict_labels.items():
                 if item in event:
                     event_dict[key]=[event[item]]
                 else:
                     event_dict[key]=[None]
-                    
+    
+    
             if 'dataValues' in event:
                 if event['dataValues']:
                     for de_info in event['dataValues']:
@@ -1210,7 +1214,9 @@ class Dhis2Client(object):
                     program_df_data_event_df_list.append(pd.DataFrame({**event_dict,**empty_de_dict}))
             else:
                 program_df_data_event_df_list.append(pd.DataFrame({**event_dict,**empty_de_dict}))
-                
+
+
+            
         if program_df_data_event_df_list:
             program_df_data_event_df=pd.concat(program_df_data_event_df_list,
                                                ignore_index=True)
