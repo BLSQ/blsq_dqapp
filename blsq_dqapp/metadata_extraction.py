@@ -1103,6 +1103,8 @@ class Dhis2Client(object):
         return events["events"]
 
     def _program_description_json_to_df(self,json):
+        program_df_program_stage_list=[]
+        program_df_attributes_list=[]
         for program in json:
             prog_id=[program['id']]
             if 'name' in program:
@@ -1111,7 +1113,7 @@ class Dhis2Client(object):
                 prog_name=[None]
         
             if 'programTrackedEntityAttributes' in program:
-                program_df_attributes_list=[]
+                
                 for attribute in program['programTrackedEntityAttributes']:
                     prog_eti_att_id=[attribute['id']]
                     prog_eti_att_name=[attribute['name']]
@@ -1124,7 +1126,7 @@ class Dhis2Client(object):
                                                                     'ETI_ATT_UID':eti_att_id,'ETI_ATT_NAME':eti_att_name,'ETI_ATT_VALUE_TYPE':eti_att_value_type                                                               
                                                                    }))
             if 'programStages' in program:
-                program_df_program_stage_list=[]
+                
                 for ps in program['programStages']:
                     prog_ps_id=[ps['id']]
                     prog_ps_name=[ps['name']]
