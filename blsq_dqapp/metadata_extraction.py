@@ -387,6 +387,12 @@ class Dhis2Client(object):
                 print(dx_descriptor,ou_descriptor)
                 
             analyticsData_df=pd.DataFrame(columns=['OU_UID','PERIOD','DE_UID','COC_UID','VALUE'])
+            
+            
+                    
+        #Make sure we filter on original requested data:
+            
+        analyticsData_df=self._filter_on_requested_uids(dx_descriptor['DX'],analyticsData_df)
         
         print('-- End of requests--',datetime.datetime.now())
         t_end=time.time()
@@ -431,7 +437,7 @@ class Dhis2Client(object):
             database_Data_df=pd.DataFrame(columns=['DE_UID','PERIOD','OU_UID','VALUE','COC_UID'])
         else:
             database_Data_df=pd.concat(database_Data_df,ignore_index=True)
-            
+
         print('-- End of requests--',datetime.datetime.now())
         t_end=time.time()
         print('Total time:',round((t_end-t_start)/60,2),'min')
@@ -1035,6 +1041,27 @@ class Dhis2Client(object):
                 database_decycle_Data_df.append(pd.DataFrame(batch))
             database_decycle_Data_df=pd.concat(database_decycle_Data_df,ignore_index=True)
         return database_decycle_Data_df
+    
+    def _filter_on_requested_uids(self,dx_list,df):
+        indicators_uids=[dx for dx in dx_list if '.' not in dx]
+        decoc_uids=[dx for dx in dx_list if '.' in dx]
+        expected_de_uids_df=pd.DataFrame({'DE_UID':[decoc_uids]})
+        expected_de_uids_df['COC_UID']=expected_de_uids_df['DE_UID'].str.split('.',expand=True)[1]
+        expected_de_uids_df['DE_UID']=expected_de_uids_df['DE_UID'].str.split('.',expand=True)[0]
+        de_uids=expected_de_uids_df['DE_UID'].unique().tolist()
+        
+
+        df_no_indicators=df.query('DE_UID in @de_uids')
+        df_no_indicators=df_no_indicators.merge(expected_de_uids_df)
+        if indicators_uids:
+            df_indicators=df.query('DE_UID in @indicators_uids')
+        else:
+            df_indicators=pd.DataFrame(columns=['DE_UID','PERIOD','OU_UID','VALUE','COC_UID'])
+        
+        df_filtered=pd.concat([df_no_indicators,
+                               df_indicators],
+                                ignoreindex=True)
+        return df_filtered
     
     def _http_extract_error_handler(self,error_code,query_answer):
         #TODO FINISH it prorperly
