@@ -207,7 +207,7 @@ class Dhis2Client(object):
         print('habari_'+str(iso_code)+'_db_updated')
         
     def extract_data_program(self, program_id_list, orgunit_id_list,program_type='event',page_size=40, fetch_all = False):
-        programData=[]
+        programData_json=[]
         if program_type=='event':
             for program_id in program_id_list:
                 for ou_unit_uid in orgunit_id_list:
@@ -217,7 +217,7 @@ class Dhis2Client(object):
                                                                        fetch_all = fetch_all)
                                             )
             
-            programData_df=_program_event_data_json_to_df(programData_json)
+            programData_df=self._program_event_data_json_to_df(programData_json)
             return programData_df
             
         elif program_type=='tracker':
@@ -229,7 +229,7 @@ class Dhis2Client(object):
                                                                                 fetch_all = fetch_all)
                                         )
             
-            programData_df=_program_tei_json_to_df(programData_json)
+            programData_df=self._program_tei_json_to_df(programData_json)
             return programData_df
             
         else:
@@ -257,7 +257,7 @@ class Dhis2Client(object):
 
     def fetch_program_descriptions(self):
         
-        programDescription = self.get("programs/"+program_id+".json", 
+        programDescription = self.get("programs.json", 
                                              params={"paging":False,                                                
                                                     "fields":
                                                              "id,name"+
@@ -266,7 +266,7 @@ class Dhis2Client(object):
                                                     })['programs']
             
         
-        programDescription=_program_description_json_to_df(programDescription)
+        programDescription=self._program_description_json_to_df(programDescription)
 
         return programDescription
 
@@ -1051,12 +1051,12 @@ class Dhis2Client(object):
     def _fetch_program_events(self, program_id, orgunit_id,page_size=40, fetch_all = False):
     
         event_url='events.json'
-        event_url=events_url+"?ou="+orgunit_id+"&ouMode=DESCENDANTS"
-        event_url=events_url+"&fields=program,event,programStage,programType,status,orgUnit,orgUnitName,eventDate,completedBy,dataValues[dataElement,value]"
-        event_url=events_url+"&program="+program_id
-        event_url=events_url+"&totalPages=true&pageSize="+str(page_size)
+        event_url=event_url+"?ou="+orgunit_id+"&ouMode=DESCENDANTS"
+        event_url=event_url+"&fields=program,event,programStage,programType,status,orgUnit,orgUnitName,eventDate,completedBy,dataValues[dataElement,value]"
+        event_url=event_url+"&program="+program_id
+        event_url=event_url+"&totalPages=true&pageSize="+str(page_size)
     
-        events = self.get(tei_url)
+        events = self.get(event_url)
         num_pages = events["pager"]["pageCount"]
     
         print(events["pager"])
