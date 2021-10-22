@@ -15,11 +15,10 @@ import datetime
 
 
 class Dhis2Client(object):
-    def __init__(self,host,full_url=False,optional_prefix=None):
+    def __init__(self,host,full_url=False,optional_prefix=None,agent_name='dqapp'):
         
         if host.startswith('http'):
             self.baseurl = host
-            
         else:
             API_USER = getpass.getpass("API User")
             API_PWD = getpass.getpass("API Password")
@@ -31,6 +30,7 @@ class Dhis2Client(object):
         
         self.session = requests.Session()
         self.optional_prefix=optional_prefix
+        self.agent_name=agent_name
 
     def get(self, path, params=None,silent=False,verify=True):
         if self.optional_prefix:
@@ -38,9 +38,16 @@ class Dhis2Client(object):
         else:
             url = self.baseurl+"/api/"+path
         if verify:
-            resp = self.session.get(url, params=params)
+            resp = self.session.get(url, 
+                                    params=params,
+                                    headers={'user-agent':self.agent_name }
+                                    )
         if not verify:
-            resp = self.session.get(url, params=params,verify=False)
+            resp = self.session.get(url, 
+                                    params=params,
+                                    verify=False,
+                                    headers={'user-agent':self.agent_name }
+                                    )
         if not silent:
             print(resp.request.path_url)
         return resp.json()
@@ -334,8 +341,8 @@ class Dhis2Client(object):
         ##TODO Filter on valid data for analytics, automate the frequency to query, autoamte teh ou to query given a tree 
             
         if expand_coc and ('DX' in dx_descriptor.keys()):
-            dx_descriptor['DX']=self._dx_coc_expander(dx_descriptor)
-            
+            fetched_dx=self._dx_coc_expander(dx_descriptor)
+            dx_descriptor['DX']=fetched_dx
             
         all_extractions_done=False
         analyticsData_df_list_cycles=[]
@@ -392,7 +399,7 @@ class Dhis2Client(object):
                     
         #Make sure we filter on original requested data:
             
-        analyticsData_df=self._filter_on_requested_uids(dx_descriptor['DX'],analyticsData_df)
+        analyticsData_df=self._filter_on_requested_uids(fetched_dx,analyticsData_df)
         
         print('-- End of requests--',datetime.datetime.now())
         t_end=time.time()
@@ -1045,7 +1052,7 @@ class Dhis2Client(object):
     def _filter_on_requested_uids(self,dx_list,df):
         indicators_uids=[dx for dx in dx_list if '.' not in dx]
         decoc_uids=[dx for dx in dx_list if '.' in dx]
-        expected_de_uids_df=pd.DataFrame({'DE_UID':[decoc_uids]})
+        expected_de_uids_df=pd.DataFrame({'DE_UID':decoc_uids})
         expected_de_uids_df['COC_UID']=expected_de_uids_df['DE_UID'].str.split('.',expand=True)[1]
         expected_de_uids_df['DE_UID']=expected_de_uids_df['DE_UID'].str.split('.',expand=True)[0]
         de_uids=expected_de_uids_df['DE_UID'].unique().tolist()
