@@ -1052,14 +1052,17 @@ class Dhis2Client(object):
     def _filter_on_requested_uids(self,dx_list,df):
         indicators_uids=[dx for dx in dx_list if '.' not in dx]
         decoc_uids=[dx for dx in dx_list if '.' in dx]
-        expected_de_uids_df=pd.DataFrame({'DE_UID':decoc_uids})
-        expected_de_uids_df['COC_UID']=expected_de_uids_df['DE_UID'].str.split('.',expand=True)[1]
-        expected_de_uids_df['DE_UID']=expected_de_uids_df['DE_UID'].str.split('.',expand=True)[0]
-        de_uids=expected_de_uids_df['DE_UID'].unique().tolist()
+        if decoc_uids:
+            expected_de_uids_df=pd.DataFrame({'DE_UID':decoc_uids})
+            expected_de_uids_df['COC_UID']=expected_de_uids_df['DE_UID'].str.split('.',expand=True)[1]
+            expected_de_uids_df['DE_UID']=expected_de_uids_df['DE_UID'].str.split('.',expand=True)[0]
+            de_uids=expected_de_uids_df['DE_UID'].unique().tolist()
         
 
-        df_no_indicators=df.query('DE_UID in @de_uids')
-        df_no_indicators=df_no_indicators.merge(expected_de_uids_df)
+            df_no_indicators=df.query('DE_UID in @de_uids')
+            df_no_indicators=df_no_indicators.merge(expected_de_uids_df)
+        else:
+            df_no_indicators=pd.DataFrame(columns=['DE_UID','PERIOD','OU_UID','VALUE','COC_UID'])
         if indicators_uids:
             df_indicators=df.query('DE_UID in @indicators_uids')
         else:
