@@ -322,7 +322,7 @@ class Dhis2Client(object):
     
     def extract_data(self,dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor,
                      coc_default_name="default",silent=False,expand_coc=True,
-                     dx_batch_size=None,ou_batch_size=None):
+                     dx_batch_size=None,ou_batch_size=None,current_usage=True,dx_coc_uids_to_filter=None):
         
         #TODO Filter on valid data type elements
         #Take DE and filter them 
@@ -341,7 +341,11 @@ class Dhis2Client(object):
         ##TODO Filter on valid data for analytics, automate the frequency to query, autoamte teh ou to query given a tree 
             
         if expand_coc and ('DX' in dx_descriptor.keys()):
-            fetched_dx=self._dx_coc_expander(dx_descriptor)
+            fetched_dx=self._dx_coc_expander(dx_descriptor,
+                                             current_usage=current_usage)
+            if dx_coc_uids_to_filter:
+                fetched_dx=[dx_ for dx_ in fetched_dx if not any([_ for _ in dx_coc_uids_to_filter if _ in dx_]) ]
+            
             dx_descriptor['DX']=fetched_dx
             
         all_extractions_done=False
@@ -409,7 +413,7 @@ class Dhis2Client(object):
                               
         
         
-    def extract_data_db(self,dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor,coc_default_name="default",silent=False,expand_coc=True):
+    def extract_data_db(self,dx_descriptor,pe_start_date,pe_end_date,frequency,ou_descriptor,coc_default_name="default",silent=False,expand_coc=True,current_usage=True):
         path="dataValues.json"
         periods=Periods.split([pe_start_date,pe_end_date],frequency)
         
@@ -417,7 +421,7 @@ class Dhis2Client(object):
         #Take DE and filter them 
         
         if expand_coc and ('DX' in dx_descriptor.keys()):
-            dx_descriptor['DX']=self._dx_coc_expander(dx_descriptor)
+            dx_descriptor['DX']=self._dx_coc_expander(dx_descriptor,current_usage=current_usage)
         ous=ou_descriptor['OU']
         de_list=dx_descriptor['DX']
         
@@ -913,11 +917,13 @@ class Dhis2Client(object):
         return max(item_lens)
     
     
-    def _dx_coc_expander(self,dx_descriptor):
+    def _dx_coc_expander(self,dx_descriptor,current_usage=True):
         de_specified_coc=[ de for de  in dx_descriptor['DX'] if '.' in de]
         de_unspecified_coc=[de.split('.')[0] for de in dx_descriptor['DX'] if '.' not in de]
         
         de_structure_=self.fetch_data_elements_structure()
+        if current_usage:
+            de_structure_=de_structure_[de_structure_.CURRENT_USE==True]
         de_coc_table=de_structure_.query('DE_UID in @de_unspecified_coc')[['DE_UID','COC_UID']].drop_duplicates()
         
         indicators_list=[de for de in de_unspecified_coc if de not in de_coc_table.DE_UID.unique()]
