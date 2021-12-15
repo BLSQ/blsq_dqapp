@@ -45,6 +45,19 @@ class ExtractPeriod:
     def next_date(self, current_date):
         pass
 
+
+class ExtractDailyPeriod(ExtractPeriod):
+    def next_date(self, date):
+        return date + relativedelta(days=1)
+
+    def dhis2_format(self, date):
+        return date.strftime("%Y%m%d")
+
+    def first_date(self, date_range):
+        return date_range.start
+
+
+
 class ExtractWeeklyPeriod(ExtractPeriod):
     def next_date(self, date):
         return date + relativedelta(days=7)
@@ -130,6 +143,7 @@ class ExtractFinancialOctoberPeriod(ExtractPeriod):
 
 
 CLASSES_MAPPING = {
+    "daily":ExtractDailyPeriod,
     "weekly": ExtractWeeklyPeriod,
     "monthly": ExtractMonthlyPeriod,
     "quarterly": ExtractQuarterlyPeriod,
@@ -193,6 +207,19 @@ class YearWeekParser:
 
         return DateRange(start_date, end_date)
 
+class YearDayParser:
+    @staticmethod
+    def parse(period):
+        if "W" in period or len(period) != 8 :
+            return
+        year = int(period[:4])
+        month=int(period[4:6])
+        day=int(period[6:])
+        start_date = date(year=year, month=month, day=day)
+        end_date = date(year=year, month=month, day=day)
+
+        return DateRange(start_date, end_date)
+
 
 class FinancialJulyParser:
     @staticmethod
@@ -221,7 +248,7 @@ class FinancialOctoberParser:
         return DateRange(start_date, end_date)
     
 
-PARSERS = [YearParser, YearQuarterParser,YearWeekParser,
+PARSERS = [YearParser, YearQuarterParser,YearWeekParser,YearDayParser,
            YearMonthParser, FinancialJulyParser,FinancialOctoberParser]
 
 CACHE = {}
