@@ -547,8 +547,16 @@ class Dhis2Client(object):
                                                          'CC_UID':cc_default,
                                                          'DS_UID':[ds_de['dataSet']['id']],
                                                          'DOMAIN':domain}))
+                else:
+                    df_list.append(pd.DataFrame({'DE_UID':de_uid,
+                                                 'DE_NAME':de_name,
+                                                 'CC_UID':cc_default,
+                                                 'DS_UID':[None]}))
             else:
-                df_list.append(pd.DataFrame({'DE_UID':de_uid,'DE_NAME':de_name,'CC_UID':cc_default,'DS_UID':[None]}))
+                df_list.append(pd.DataFrame({'DE_UID':de_uid,
+                                             'DE_NAME':de_name,
+                                             'CC_UID':cc_default,
+                                             'DS_UID':[None]}))
         return pd.concat(df_list,ignore_index=True)
     
     def _num_den_text_processator(self,text,coc_default_uid):
