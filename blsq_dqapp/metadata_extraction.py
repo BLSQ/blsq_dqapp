@@ -31,23 +31,26 @@ class Dhis2Client(object):
         self.session = requests.Session()
         self.optional_prefix=optional_prefix
         self.agent_name=agent_name
+        self.s_cookies=None
 
     def get(self, path, params=None,silent=False,verify=True):
         if self.optional_prefix:
             url = self.baseurl+self.optional_prefix+"/api/"+path
         else:
             url = self.baseurl+"/api/"+path
-        if verify:
+        if self.s_cookies:
             resp = self.session.get(url, 
                                     params=params,
-                                    headers={'user-agent':self.agent_name }
+                                    headers={'user-agent':self.agent_name },
+                                    cookies=self.s_cookies
                                     )
-        if not verify:
+        if not self.s_cookies:
             resp = self.session.get(url, 
                                     params=params,
-                                    verify=False,
+                                    verify=verify,
                                     headers={'user-agent':self.agent_name }
                                     )
+            self.s_cookies=resp.cookies
         if not silent:
             print(resp.request.path_url)
         return resp.json()
