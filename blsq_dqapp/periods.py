@@ -92,6 +92,29 @@ class ExtractQuarterlyPeriod(ExtractPeriod):
 
     def first_date(self, date_range):
         return self.quarter_start(date_range.start)
+    
+    
+class ExtractSixMonthlyPeriod(ExtractPeriod):
+    def next_date(self, date):
+        return date + relativedelta(months=6)
+
+    def dhis2_format(self, date):
+        semester_number=(date.month-1//6)+1
+        return date.strftime("%Y")+f"S{semester_number}"
+
+    def first_date(self, date_range):
+        return date_range.start.replace(day=1)
+
+class ExtractSixMonthlyAprilPeriod(ExtractPeriod):
+    def next_date(self, date):
+        return date + relativedelta(months=6)
+
+    def dhis2_format(self, date):
+        semester_number=(date.month-1//10)+1
+        return date.strftime("%Y")+f"AprilS{semester_number}"
+
+    def first_date(self, date_range):
+        return date_range.start.replace(day=1)
 
 
 class ExtractYearlyPeriod(ExtractPeriod):
@@ -147,6 +170,8 @@ CLASSES_MAPPING = {
     "weekly": ExtractWeeklyPeriod,
     "monthly": ExtractMonthlyPeriod,
     "quarterly": ExtractQuarterlyPeriod,
+    "sixmonthly":ExtractSixMonthlyPeriod,
+    "sixmonthly_april":ExtractSixMonthlyAprilPeriod,
     "yearly": ExtractYearlyPeriod,
     "financial_july": ExtractFinancialJulyPeriod,
     "financial_october": ExtractFinancialOctoberPeriod
