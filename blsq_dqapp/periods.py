@@ -188,6 +188,36 @@ class YearParser:
         end_date = start_date.replace(month=12, day=31)
 
         return DateRange(start_date, end_date)
+    
+    
+class YearSixMonthParser:
+    @staticmethod
+    def parse(period):
+        if "S" not in period or "April" in period:
+            return
+        year = int(period[0:4])
+        semester = int(period[-1])
+        start_month=(semester-1)*6+1
+        start_date = date(year=year, month=start_month, day=1)
+        end_date = start_date + relativedelta(month=5)+ \
+            relativedelta(day=31)
+
+        return DateRange(start_date, end_date)
+    
+    
+class YearSixMonthAprilParser:
+    @staticmethod
+    def parse(period):
+        if "April" not in period:
+            return
+        year = int(period[0:4])
+        aprilSemester = int(period[-1])
+        start_month=aprilSemester*6-2
+        start_date = date(year=year, month=start_month, day=1)
+        end_date = start_date + relativedelta(month=5)+ \
+            relativedelta(day=31)
+
+        return DateRange(start_date, end_date)
 
 
 class YearQuarterParser:
@@ -273,7 +303,8 @@ class FinancialOctoberParser:
         return DateRange(start_date, end_date)
     
 
-PARSERS = [YearParser, YearQuarterParser,YearWeekParser,YearDayParser,
+PARSERS = [YearParser,YearSixMonthParser,YearSixMonthAprilParser,
+           YearQuarterParser,YearWeekParser,YearDayParser,
            YearMonthParser, FinancialJulyParser,FinancialOctoberParser]
 
 CACHE = {}
